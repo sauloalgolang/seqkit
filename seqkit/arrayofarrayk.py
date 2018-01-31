@@ -25,10 +25,14 @@ import sys
 import gzip
 
 def openfile(filename, mode):
-    if filename.endswith(".gz"):
-        return gzip.open(filename, mode+"b")
+    if filename == '-':
+        print "reading from stdin"
+        return sys.stdin
     else:
-        return open(filename, mode)
+        if filename.endswith(".gz"):
+            return gzip.open(filename, mode+"b")
+        else:
+            return open(filename, mode)
 
 def toBin(num, chunk_size=8):
     bv = "{:064b}".format(num)
