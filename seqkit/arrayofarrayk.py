@@ -6,6 +6,10 @@ Num Uniq Kmers          512
 real    9m00.589s
 user    8m57.078s
 sys     0m03.313s
+pigz
+real    8m38.941s
+user    8m38.828s
+sys     0m3.531s
 
 time pypy3 ./arrayofarrayk.py S_lycopersicum_chromosomes.2.50.fa.gz
 Num Kmers       737,528,050
@@ -13,6 +17,10 @@ Num Uniq Kmers          512
 real    0m39.627s
 user    0m36.906s
 sys     0m02.375s
+pigz
+real    0m29.580s
+user    0m31.438s
+sys     0m2.969s
 
 time ./seqkit kmer ../../../S_lycopersicum_chromosomes.2.50.fa.gz
 Num Kmers      737,528,493
@@ -26,8 +34,8 @@ import gzip
 
 def openfile(filename, mode):
     if filename == '-':
-        print "reading from stdin"
-        return sys.stdin
+        print( "reading from stdin" )
+        return sys.stdin.buffer
     else:
         if filename.endswith(".gz"):
             return gzip.open(filename, mode+"b")
@@ -129,6 +137,8 @@ def parseSeq(filename, conv):
             
             if len(line) == 0:
                 continue
+            
+            # print( line )
             
             if line[0] == ord(">"):
                 # print( "IS  > :: ", line[0], line )

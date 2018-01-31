@@ -31,6 +31,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+import (
+	"golang.org/x/text/message"
+)
+
 // kmerCmd represents the seq command
 var kmerCmd = &cobra.Command{
 	Use:   "kmer",
@@ -79,9 +83,13 @@ var kmerCmd = &cobra.Command{
 
 		files := getFileList(args)
 
+		maxCount           := uint64((1 << uint(dbSize * 8))-1)
 		
+		print( "max count: ", maxCount, "\n" )
 		
-        vals               := make([]int64, 256, 256)
+        vals               := make([]uint64, 256, 256)
+        lavs               := make([]uint64, 256, 256)
+        invs               := make([]bool  , 256, 256)
 		CHARS              := [4]byte{'A', 'C', 'G', 'T'}
 		chars              := [4]byte{'a', 'c', 'g', 't'}
         var cleaner uint64  = (1 << (uint64(kmerSize)*2)) - 1
@@ -89,30 +97,39 @@ var kmerCmd = &cobra.Command{
 
 		var val uint64      = 0
 		var lav uint64      = 0
-		var cv   int64      = 0
-		var cw   int64      = 0
+		var vav uint64      = 0
+		var cv  uint64      = 0
+		var cw  uint64      = 0
+		var ci  bool        = false
 		curr               := 0
 		count              := 0
 		
 		for i, _ := range vals {
-			vals[i] = -1
+			vals[i] = 0
+			lavs[i] = 0
+			invs[i] = false
 		}
 
 		for i, b := range CHARS {
 			//print( "CHARS i: ", i, " b: ", b, "\n" );
-			vals[uint8(b)] = int64(i)
+			vals[uint8(b)] =    uint64(i)
+			lavs[uint8(b)] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
+			invs[uint8(b)] = true
 		}
 
 		for i, b := range chars {
 			//print( "chars i: ", i, " b: ", b, "\n" );
-			vals[uint8(b)] = int64(i)
+			vals[uint8(b)] =    uint64(i)
+			lavs[uint8(b)] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
+			invs[uint8(b)] = true
 		}
 
-		print( "cleaner ", cleaner, "\n")
-		print( "res     ",     res, "\n")
+		//print( "cleaner ", cleaner, "\n")
+		//print( "res     ",     res, "\n")
 
 		//for i, b := range vals {
-		//	print( "vals i: ", i, " b: ", b, "\n" );
+		//	fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, b, b );
+		//	fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, lavs[i], lavs[i] );
 		//}
 		
 		//checkError(fmt.Errorf("done"))
@@ -162,46 +179,50 @@ var kmerCmd = &cobra.Command{
 
 				val      = 0
 				lav      = 0
+				vav      = 0
 				curr     = 0
 				count    = 0
 				cv       = 0
 				cw       = 0
+				ci       = false
 					
 				for _, b := range sequence.Seq {
 					//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
 
 					count += 1
 					cv     = vals[ b ]
+					cw     = lavs[ b ]
+					ci     = invs[ b ]
 					
-					if cv == -1 {
+					if ! ci {
 						curr = 0
 						val  = 0
 						lav  = 0
+						vav  = 0
 						continue
 					} else {
-						cw      = 3 - cv
+						//cw      = 3 - cv
 						//# print( "v       {} {:12,d} - {} - CHAR {} - CURR {} COUNT {:12d}".format(" "*22, v, toBin(v), chr(s), curr, count ) )
 						//# print( "w       {} {:12,d} - {} - CHAR {} - CURR {} COUNT {:12d}".format(" "*22, w, toBin(w), " "   , curr, count ) )
 						val <<= 2
 						val  &= cleaner
 						val  += uint64(cv)
 						lav >>= 2
-						lav  += uint64(cw) << (2*(uint64(kmerSize)-1))
+						lav  += uint64(cw)
 						//# print( "val     {} {:12,d} - {}".format(" "*22, val, toBin(val) ) )
 						//# print( "lav     {} {:12,d} - {}".format(" "*22, lav, toBin(lav) ) )
 						if curr == kmerSize - 1 {
-						//	# print( "val     {} {:12,d} - {}".format(" "*22, val, toBin(val) ) )
-						//	# print( "lav     {} {:12,d} - {}".format(" "*22, lav, toBin(lav) ) )
-						//	# print()
+							//	# print( "val     {} {:12,d} - {}".format(" "*22, val, toBin(val) ) )
+							//	# print( "lav     {} {:12,d} - {}".format(" "*22, lav, toBin(lav) ) )
+							//	# print()
+							vav = val
 							if lav < val {
-								if res[lav] < 254 {
-									res[lav] += 1
-								}
-							} else {
-								if res[val] < 254 {
-									res[val] += 1
-								}
+								vav = lav
 							}
+							if uint64(res[vav]) < maxCount {
+								res[vav] += 1
+							}
+
 						} else {
 						//	# print(".")
 							curr += 1
@@ -223,8 +244,9 @@ var kmerCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Printf( "Num Kmers      %v\n", ksums )
-        fmt.Printf( "Num Uniq Kmers %v\n", kcoun )
+		p := message.NewPrinter(message.MatchLanguage("en"))
+		p.Printf( "Num Kmers      %12d\n", ksums )
+        p.Printf( "Num Uniq Kmers %12d\n", kcoun )
 
 		outfh.Close()
 	},
