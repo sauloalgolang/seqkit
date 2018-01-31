@@ -55,7 +55,7 @@ var kmerCmd = &cobra.Command{
 		validateSeqLength := getFlagValidateSeqLength(cmd, "validate-seq-length")
 		minLen := getFlagInt(cmd, "min-len")
 		maxLen := getFlagInt(cmd, "max-len")
-		kmerSize := getFlagPositiveInt(cmd, "kmer-size")
+		kmerSize := uint64(getFlagPositiveInt(cmd, "kmer-size"))
 		dbSize := getFlagPositiveInt(cmd, "db-size")
 
 		if minLen >= 0 && maxLen >= 0 && minLen > maxLen {
@@ -87,49 +87,57 @@ var kmerCmd = &cobra.Command{
 		
 		print( "max count: ", maxCount, "\n" )
 		
-        vals               := make([]uint64, 256, 256)
-        lavs               := make([]uint64, 256, 256)
-        invs               := make([]bool  , 256, 256)
+        vals               := [256][3]uint64{}
 		CHARS              := [4]byte{'A', 'C', 'G', 'T'}
 		chars              := [4]byte{'a', 'c', 'g', 't'}
         var cleaner uint64  = (1 << (uint64(kmerSize)*2)) - 1
         res                := make([]uint8, cleaner)
 
-		var val uint64      = 0
-		var lav uint64      = 0
-		var vav uint64      = 0
-		var cv  uint64      = 0
-		var cw  uint64      = 0
-		var ci  bool        = false
-		curr               := 0
+		var val  uint64     = 0
+		var lav  uint64     = 0
+		var vav  uint64     = 0
+		var cv   uint64     = 0
+		var cw   uint64     = 0
+		var ci   uint64     = 0
+		var curr uint64     = 0
+
+		numRegisters       := 0
 		count              := 0
+		countSeq           := 0
+		valids             := 0
+		validsSeq          := 0
+		skipped            := 0
+		skippedSeq         := 0
+		resets             := 0
+		resetsSeq          := 0
 		
-		for i, _ := range vals {
-			vals[i] = 0
-			lavs[i] = 0
-			invs[i] = false
+		for _, a := range vals {
+			for j, _ := range a {
+				a[j] = 0
+			}
 		}
 
 		for i, b := range CHARS {
 			//print( "CHARS i: ", i, " b: ", b, "\n" );
-			vals[uint8(b)] =    uint64(i)
-			lavs[uint8(b)] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
-			invs[uint8(b)] = true
+			vals[uint8(b)][0] =    uint64(i)
+			vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
+			vals[uint8(b)][2] = 1
 		}
 
 		for i, b := range chars {
 			//print( "chars i: ", i, " b: ", b, "\n" );
-			vals[uint8(b)] =    uint64(i)
-			lavs[uint8(b)] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
-			invs[uint8(b)] = true
+			vals[uint8(b)][0] =    uint64(i)
+			vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
+			vals[uint8(b)][2] = 1
 		}
 
 		//print( "cleaner ", cleaner, "\n")
 		//print( "res     ",     res, "\n")
 
-		//for i, b := range vals {
-		//	fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, b, b );
-		//	fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, lavs[i], lavs[i] );
+		//for j, b := range vals {
+		//	//fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, b, b );
+		//	v, w, i := b[0], b[1], b[2]
+		//	fmt.Printf( "vals i: %3d v: %3d (%010b) w: %3d (%010b) i: %d\n", j, v, v, w, w, i );
 		//}
 		
 		//checkError(fmt.Errorf("done"))
@@ -175,58 +183,83 @@ var kmerCmd = &cobra.Command{
 					fmt.Printf( "Parsing %s\n", record.Name )
 				}
 
-				sequence = record.Seq
+				sequence      = record.Seq
 
-				val      = 0
-				lav      = 0
-				vav      = 0
-				curr     = 0
-				count    = 0
-				cv       = 0
-				cw       = 0
-				ci       = false
+				numRegisters += 1
+				
+				countSeq      = 0
+				validsSeq     = 0
+				skippedSeq    = 0
+				resetsSeq     = 0
+				
+				val           = 0
+				lav           = 0
+				vav           = 0
+				curr          = 0
+				cv            = 0
+				cw            = 0
+				ci            = 0
 					
 				for _, b := range sequence.Seq {
 					//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
-
-					count += 1
-					cv     = vals[ b ]
-					cw     = lavs[ b ]
-					ci     = invs[ b ]
+					count      += 1
+					countSeq   += 1
 					
-					if ! ci {
-						curr = 0
-						val  = 0
-						lav  = 0
-						vav  = 0
+					cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
+					
+					//if count > 119200 {
+					//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
+					//fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
+					//}
+					
+					if ci == 0 {
+						curr       = 0
+						val        = 0
+						lav        = 0
+						vav        = 0
+						resets    += 1
+						resetsSeq += 1
 						continue
+
 					} else {
-						//cw      = 3 - cv
-						//# print( "v       {} {:12,d} - {} - CHAR {} - CURR {} COUNT {:12d}".format(" "*22, v, toBin(v), chr(s), curr, count ) )
-						//# print( "w       {} {:12,d} - {} - CHAR {} - CURR {} COUNT {:12d}".format(" "*22, w, toBin(w), " "   , curr, count ) )
+						valids    += 1
+						validsSeq += 1
+						
 						val <<= 2
 						val  &= cleaner
-						val  += uint64(cv)
+						val  += cv
+
 						lav >>= 2
-						lav  += uint64(cw)
-						//# print( "val     {} {:12,d} - {}".format(" "*22, val, toBin(val) ) )
-						//# print( "lav     {} {:12,d} - {}".format(" "*22, lav, toBin(lav) ) )
+						lav  += cw
+						
+						//if count > 119200 {
+						//fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
+						//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
+						//}
+						
 						if curr == kmerSize - 1 {
-							//	# print( "val     {} {:12,d} - {}".format(" "*22, val, toBin(val) ) )
-							//	# print( "lav     {} {:12,d} - {}".format(" "*22, lav, toBin(lav) ) )
-							//	# print()
 							vav = val
+							
 							if lav < val {
 								vav = lav
 							}
+							
 							if uint64(res[vav]) < maxCount {
 								res[vav] += 1
+								//if count > 119200 {
+								//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
+								//}
+							} else {
+								skipped    += 1
+								skippedSeq += 1
 							}
-
 						} else {
-						//	# print(".")
-							curr += 1
+							//println(".", count)
+							curr      += 1
 						}
+						//if count > 119200 {
+						//println ()
+						//}
 					}
 				}
 			}
