@@ -86,12 +86,6 @@ var kmerCmd = &cobra.Command{
 		maxCount           := uint64((1 << uint(dbSize * 8))-1)
 		
 		print( "max count: ", maxCount, "\n" )
-		
-        vals               := [256][3]uint64{}
-		CHARS              := [4]byte{'A', 'C', 'G', 'T'}
-		chars              := [4]byte{'a', 'c', 'g', 't'}
-        var cleaner uint64  = (1 << (uint64(kmerSize)*2)) - 1
-        res                := make([]uint8, cleaner)
 
 		var val  uint64     = 0
 		var lav  uint64     = 0
@@ -99,8 +93,8 @@ var kmerCmd = &cobra.Command{
 		var cv   uint64     = 0
 		var cw   uint64     = 0
 		var ci   uint64     = 0
-		var curr uint64     = 0
-
+		//var curr uint64     = 0
+		
 		numRegisters       := 0
 		count              := 0
 		countSeq           := 0
@@ -110,6 +104,12 @@ var kmerCmd = &cobra.Command{
 		skippedSeq         := 0
 		resets             := 0
 		resetsSeq          := 0
+		
+        vals               := [256][3]uint64{}
+		CHARS              := [4]byte{'A', 'C', 'G', 'T'}
+		chars              := [4]byte{'a', 'c', 'g', 't'}
+        var cleaner uint64  = (1 << (uint64(kmerSize)*2)) - 1
+        res                := make([]uint8, cleaner)
 		
 		for _, a := range vals {
 			for j, _ := range a {
@@ -180,7 +180,7 @@ var kmerCmd = &cobra.Command{
 				if fastxReader.IsFastq {
 					config.LineWidth = 0
 				} else {
-					fmt.Printf( "Parsing %s\n", record.Name )
+					fmt.Printf( "Parsing %s %12d\n", record.Name, len((*record.Seq).Seq) )
 				}
 
 				sequence      = record.Seq
@@ -195,73 +195,130 @@ var kmerCmd = &cobra.Command{
 				val           = 0
 				lav           = 0
 				vav           = 0
-				curr          = 0
+				//curr          = 0
 				cv            = 0
 				cw            = 0
 				ci            = 0
-					
-				for _, b := range sequence.Seq {
-					//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
+				
+				var i uint64 = 0
+				frag := make([]byte, kmerSize)
+				for i = 0; i < uint64(len(sequence.Seq))-kmerSize; i++ {
+					frag = sequence.Seq[i:i+kmerSize]
 					count      += 1
 					countSeq   += 1
-					
-					cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
-					
-					//if count > 119200 {
-					//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
-					//fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
-					//}
-					
-					if ci == 0 {
-						curr       = 0
+					//println(string(frag))
+					for curr, b := range frag {
+						cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
 						val        = 0
 						lav        = 0
 						vav        = 0
-						resets    += 1
-						resetsSeq += 1
-						continue
-
-					} else {
-						valids    += 1
-						validsSeq += 1
 						
-						val <<= 2
-						val  &= cleaner
-						val  += cv
-
-						lav >>= 2
-						lav  += cw
-						
-						//if count > 119200 {
-						//fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
-						//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
-						//}
-						
-						if curr == kmerSize - 1 {
-							vav = val
-							
-							if lav < val {
-								vav = lav
-							}
-							
-							if uint64(res[vav]) < maxCount {
-								res[vav] += 1
-								//if count > 119200 {
-								//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
-								//}
-							} else {
-								skipped    += 1
-								skippedSeq += 1
-							}
+						if ci == 0 {
+							resets    += 1
+							resetsSeq += 1
+							break
 						} else {
-							//println(".", count)
-							curr      += 1
+							valids    += 1
+							validsSeq += 1
+							
+							val <<= 2
+							val  &= cleaner
+							val  += cv
+					
+							lav >>= 2
+							lav  += cw
+							
+							//if count > 119200 {
+							//fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
+							//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
+							//}
+							
+							if uint64(curr) == kmerSize - 1 {
+								vav = val
+								
+								if lav < val {
+									vav = lav
+								}
+								
+								if uint64(res[vav]) < maxCount {
+									res[vav] += 1
+									//if count > 119200 {
+									//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
+									//}
+								} else {
+									skipped    += 1
+									skippedSeq += 1
+								}
+							}
+							//if count > 119200 {
+							//println ()
+							//}
 						}
-						//if count > 119200 {
-						//println ()
-						//}
 					}
 				}
+				
+				//for _, b := range sequence.Seq {
+				//	//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
+				//	count      += 1
+				//	countSeq   += 1
+				//	
+				//	cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
+				//	
+				//	//if count > 119200 {
+				//	//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
+				//	//fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
+				//	//}
+				//	
+				//	if ci == 0 {
+				//		curr       = 0
+				//		val        = 0
+				//		lav        = 0
+				//		vav        = 0
+				//		resets    += 1
+				//		resetsSeq += 1
+				//		continue
+				//
+				//	} else {
+				//		valids    += 1
+				//		validsSeq += 1
+				//		
+				//		val <<= 2
+				//		val  &= cleaner
+				//		val  += cv
+				//
+				//		lav >>= 2
+				//		lav  += cw
+				//		
+				//		//if count > 119200 {
+				//		//fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
+				//		//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
+				//		//}
+				//		
+				//		if curr == kmerSize - 1 {
+				//			vav = val
+				//			
+				//			if lav < val {
+				//				vav = lav
+				//			}
+				//			
+				//			if uint64(res[vav]) < maxCount {
+				//				res[vav] += 1
+				//				//if count > 119200 {
+				//				//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
+				//				//}
+				//			} else {
+				//				skipped    += 1
+				//				skippedSeq += 1
+				//			}
+				//		} else {
+				//			//println(".", count)
+				//			curr      += 1
+				//		}
+				//		//if count > 119200 {
+				//		//println ()
+				//		//}
+				//	}
+				//}
 			}
 			config.LineWidth = lineWidth
 		}
