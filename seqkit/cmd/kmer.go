@@ -199,21 +199,28 @@ var kmerCmd = &cobra.Command{
 				cv            = 0
 				cw            = 0
 				ci            = 0
-				
-				var i uint64 = 0
-				for i = 0; i < uint64(len(sequence.Seq))-kmerSize; i++ {
-					i:i+kmerSize
+
+				for _, b := range sequence.Seq {
+					//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
 					count      += 1
 					countSeq   += 1
+					
 					cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
-					val        = 0
-					lav        = 0
-					vav        = 0
+					
+					//if count > 119200 {
+					//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
+					//fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
+					//}
 					
 					if ci == 0 {
+						curr       = 0
+						val        = 0
+						lav        = 0
+						vav        = 0
 						resets    += 1
 						resetsSeq += 1
-						break
+						continue
+				
 					} else {
 						valids    += 1
 						validsSeq += 1
@@ -230,7 +237,7 @@ var kmerCmd = &cobra.Command{
 						//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
 						//}
 						
-						if uint64(curr) == kmerSize - 1 {
+						if curr == kmerSize - 1 {
 							vav = val
 							
 							if lav < val {
@@ -246,75 +253,15 @@ var kmerCmd = &cobra.Command{
 								skipped    += 1
 								skippedSeq += 1
 							}
+						} else {
+							//println(".", count)
+							curr      += 1
 						}
 						//if count > 119200 {
 						//println ()
 						//}
 					}
 				}
-				
-				//for _, b := range sequence.Seq {
-				//	//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
-				//	count      += 1
-				//	countSeq   += 1
-				//	
-				//	cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
-				//	
-				//	//if count > 119200 {
-				//	//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
-				//	//fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
-				//	//}
-				//	
-				//	if ci == 0 {
-				//		curr       = 0
-				//		val        = 0
-				//		lav        = 0
-				//		vav        = 0
-				//		resets    += 1
-				//		resetsSeq += 1
-				//		continue
-				//
-				//	} else {
-				//		valids    += 1
-				//		validsSeq += 1
-				//		
-				//		val <<= 2
-				//		val  &= cleaner
-				//		val  += cv
-				//
-				//		lav >>= 2
-				//		lav  += cw
-				//		
-				//		//if count > 119200 {
-				//		//fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
-				//		//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
-				//		//}
-				//		
-				//		if curr == kmerSize - 1 {
-				//			vav = val
-				//			
-				//			if lav < val {
-				//				vav = lav
-				//			}
-				//			
-				//			if uint64(res[vav]) < maxCount {
-				//				res[vav] += 1
-				//				//if count > 119200 {
-				//				//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
-				//				//}
-				//			} else {
-				//				skipped    += 1
-				//				skippedSeq += 1
-				//			}
-				//		} else {
-				//			//println(".", count)
-				//			curr      += 1
-				//		}
-				//		//if count > 119200 {
-				//		//println ()
-				//		//}
-				//	}
-				//}
 			}
 			config.LineWidth = lineWidth
 		}
