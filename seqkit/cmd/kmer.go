@@ -50,6 +50,9 @@ type StatMap    map[string]*Stat
 type StatMapMap map[string]StatMap
 
 
+
+
+
 // kmerCmd represents the seq command
 var kmerCmd = &cobra.Command{
 	Use:   "kmer",
@@ -121,13 +124,14 @@ var kmerCmd = &cobra.Command{
 
 		var statsFileP  *Stat
 		var statsSeqP   *Stat
+		var res         = NewKmerHolder(kmerSize)
 		
         var cleaner uint64  = (1 << (uint64(kmerSize)*2)) - 1
 
         vals               := [256][3]uint64{}
 		CHARS              := [4]byte{'A', 'C', 'G', 'T'}
 		chars              := [4]byte{'a', 'c', 'g', 't'}
-        res                := make([]uint8, cleaner)
+        //res                := make([]uint8, cleaner)
 		
 		for _, a := range vals {
 			for j, _ := range a {
@@ -294,27 +298,17 @@ var kmerCmd = &cobra.Command{
 								vav = lav
 							}
 							
-							if uint64(res[vav]) < maxCount {
-								res[vav] += 1
+							res.Add(vav)
+							stats     .Counted += 1
+							statsFileP.Counted += 1
 
-								stats     .Counted += 1
-								statsFileP.Counted += 1
-
-								if ! fastxReader.IsFastq {
-									statsSeqP.Counted += 1
-								}
-								
-								//if count > 119200 {
-								//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
-								//}
-							} else {		
-								stats     .Skipped += 1
-								statsFileP.Skipped += 1
-			
-								if ! fastxReader.IsFastq {
-									statsSeqP.Skipped += 1
-								}
+							if ! fastxReader.IsFastq {
+								statsSeqP.Counted += 1
 							}
+								
+							//if count > 119200 {
+							//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
+							//}
 						} else {
 							//println(".", count)
 							curr      += 1
@@ -331,12 +325,13 @@ var kmerCmd = &cobra.Command{
 		var kcoun uint64 = 0
 		var ksums uint64 = 0
 		
-		for _, c := range res {
+		res.Close()
+		
+		for i:=0; i < res.Size; i++ {
+			kmer  := res.Get(i)
 			//print( "RES i: ", i, " c: ", c, "\n" );
-			if c > 0 {
-				kcoun += 1
-				ksums += uint64(c)
-			}
+			kcoun += 1
+			ksums += uint64(kmer.Count)
 		}
 
 		p.Printf( "Num Files      %12d\n", len(files) )
@@ -405,7 +400,7 @@ var kmerCmd = &cobra.Command{
 		outfh, err := xopen.Wopen(outFile)
 		checkError(err)
 		defer outfh.Close()
-		//
+
 		//outfh.Close()
 		
 		println("finished saving\n")
