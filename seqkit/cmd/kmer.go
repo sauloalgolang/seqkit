@@ -105,7 +105,7 @@ var kmerCmd = &cobra.Command{
 
 		p := message.NewPrinter(message.MatchLanguage("en"))
 		
-		print( "max count: ", maxCount, "\n" )
+		println( "max count: ", maxCount )
 
 		var val          uint64 = 0
 		var lav          uint64 = 0
@@ -327,7 +327,7 @@ var kmerCmd = &cobra.Command{
 		
 		res.Close()
 		
-		for i:=0; i < res.Size; i++ {
+		for i:=0; i < res.KmerLen; i++ {
 			kmer  := res.Get(i)
 			//print( "RES i: ", i, " c: ", c, "\n" );
 			kcoun += 1
