@@ -33,6 +33,7 @@ import (
 
 import (
 	"golang.org/x/text/message"
+	"github.com/shenwei356/go-logging"
 )
 
 type Stat struct {
@@ -70,6 +71,7 @@ var kmerCmd = &cobra.Command{
 		runtime.GOMAXPROCS(config.Threads)
 
 		validateSeq := getFlagBool(cmd, "validate-seq")
+		debug := getFlagBool(cmd, "debug")
 		validateSeqLength := getFlagValidateSeqLength(cmd, "validate-seq-length")
 		minLen := getFlagInt(cmd, "min-len")
 		maxLen := getFlagInt(cmd, "max-len")
@@ -94,6 +96,19 @@ var kmerCmd = &cobra.Command{
 		seq.ValidSeqThreads = config.Threads
 		seq.ComplementThreads = config.Threads
 
+		if config.Quiet && debug {
+			checkError(fmt.Errorf("Cannot be quiet (--quiet) and debug (-d) at the same time"))			
+		}
+		
+		if debug {
+			logging.SetLevel(logging.DEBUG, "seqkit")
+		} else if config.Quiet {
+			logging.SetLevel(logging.ERROR, "seqkit")
+		} else {
+			logging.SetLevel(logging.INFO, "seqkit")
+		}
+		
+		
 		if !(alphabet == nil || alphabet == seq.Unlimit) {
 			log.Info("when flag -t (--seq-type) given, flag -v (--validate-seq) is automatically switched on")
 			seq.ValidateSeq = true
@@ -105,7 +120,7 @@ var kmerCmd = &cobra.Command{
 
 		p := message.NewPrinter(message.MatchLanguage("en"))
 		
-		println( "max count: ", maxCount )
+		log.Info( "max count: ", maxCount )
 
 		var val          uint64 = 0
 		var lav          uint64 = 0
@@ -211,7 +226,7 @@ var kmerCmd = &cobra.Command{
 				statsFileP.Size           += seqLen
 				
 				if ! fastxReader.IsFastq {
-					p.Printf( "Parsing '%s' %12d\n", record.Name, seqLen )
+					log.Infof(p.Sprintf( "Parsing '%s' %12d\n", record.Name, seqLen ))
 
 					if statsSeq[file] == nil {
 						statsSeq[file] = StatMap{}
@@ -310,11 +325,11 @@ var kmerCmd = &cobra.Command{
 							//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
 							//}
 						} else {
-							//println(".", count)
+							//log.Info(".", count)
 							curr      += 1
 						}
 						//if count > 119200 {
-						//println ()
+						//log.Info ()
 						//}
 					}
 				}
@@ -334,9 +349,9 @@ var kmerCmd = &cobra.Command{
 			ksums += uint64(kmer.Count)
 		}
 
-		p.Printf( "Num Files      %12d\n", len(files) )
-		p.Printf( "Num Kmers      %12d\n", ksums )
-        p.Printf( "Num Uniq Kmers %12d\n", kcoun )
+		log.Infof(p.Sprintf( "Num Files      %12d\n", len(files) ))
+		log.Infof(p.Sprintf( "Num Kmers      %12d\n", ksums      ))
+        log.Infof(p.Sprintf( "Num Uniq Kmers %12d\n", kcoun      ))
 
 		//Size      uint64
 		//Registers uint64
@@ -345,57 +360,57 @@ var kmerCmd = &cobra.Command{
 		//Valids    uint64
 		//Skipped   uint64
 		//Resets    uint64
-		println("==========")
+		log.Info("==========")
 
-        p.Printf( "Size      %12d\n", stats.Size      )
-        p.Printf( "Registers %12d\n", stats.Registers )
-        p.Printf( "Lines     %12d\n", stats.Lines     )
-        p.Printf( "Chars     %12d\n", stats.Chars     )
-        p.Printf( "Valids    %12d\n", stats.Valids    )
-        p.Printf( "Counted   %12d\n", stats.Counted   )
-        p.Printf( "Skipped   %12d\n", stats.Skipped   )
-        p.Printf( "Resets    %12d\n", stats.Resets    )
+        log.Infof(p.Sprintf( "Size      %12d\n", stats.Size      ))
+        log.Infof(p.Sprintf( "Registers %12d\n", stats.Registers ))
+        log.Infof(p.Sprintf( "Lines     %12d\n", stats.Lines     ))
+        log.Infof(p.Sprintf( "Chars     %12d\n", stats.Chars     ))
+        log.Infof(p.Sprintf( "Valids    %12d\n", stats.Valids    ))
+        log.Infof(p.Sprintf( "Counted   %12d\n", stats.Counted   ))
+        log.Infof(p.Sprintf( "Skipped   %12d\n", stats.Skipped   ))
+        log.Infof(p.Sprintf( "Resets    %12d\n", stats.Resets    ))
 
-		println("==========")
+		log.Info("==========")
 
 		for _, filename := range fileNames {
 			fStat    := statsFile[filename]
 			seqStats := statsSeq[filename]
 
-			println("  File: ", filename)
+			log.Info("  File: ", filename)
 
-			p.Printf( "    Size      %12d\n", fStat.Size      )
-			p.Printf( "    Registers %12d\n", fStat.Registers )
-			p.Printf( "    Lines     %12d\n", fStat.Lines     )
-			p.Printf( "    Chars     %12d\n", fStat.Chars     )
-			p.Printf( "    Valids    %12d\n", fStat.Valids    )
-			p.Printf( "    Counted   %12d\n", fStat.Counted   )
-			p.Printf( "    Skipped   %12d\n", fStat.Skipped   )
-			p.Printf( "    Resets    %12d\n", fStat.Resets    )
+			log.Infof(p.Sprintf( "    Size      %12d\n", fStat.Size      ))
+			log.Infof(p.Sprintf( "    Registers %12d\n", fStat.Registers ))
+			log.Infof(p.Sprintf( "    Lines     %12d\n", fStat.Lines     ))
+			log.Infof(p.Sprintf( "    Chars     %12d\n", fStat.Chars     ))
+			log.Infof(p.Sprintf( "    Valids    %12d\n", fStat.Valids    ))
+			log.Infof(p.Sprintf( "    Counted   %12d\n", fStat.Counted   ))
+			log.Infof(p.Sprintf( "    Skipped   %12d\n", fStat.Skipped   ))
+			log.Infof(p.Sprintf( "    Resets    %12d\n", fStat.Resets    ))
 
-			println("  ----------")
+			log.Info("  ----------")
 
 			for _, seqName := range seqNames[filename] {
 				fStat := seqStats[seqName]
 
-				println("    Sequence: ", seqName)
+				log.Info("    Sequence: ", seqName)
 
-				p.Printf( "      Size      %12d\n", fStat.Size      )
-				p.Printf( "      Registers %12d\n", fStat.Registers )
-				p.Printf( "      Lines     %12d\n", fStat.Lines     )
-				p.Printf( "      Chars     %12d\n", fStat.Chars     )
-				p.Printf( "      Valids    %12d\n", fStat.Valids    )
-				p.Printf( "      Counted   %12d\n", fStat.Counted   )
-				p.Printf( "      Skipped   %12d\n", fStat.Skipped   )
-				p.Printf( "      Resets    %12d\n", fStat.Resets    )
+				log.Infof(p.Sprintf( "      Size      %12d\n", fStat.Size      ))
+				log.Infof(p.Sprintf( "      Registers %12d\n", fStat.Registers ))
+				log.Infof(p.Sprintf( "      Lines     %12d\n", fStat.Lines     ))
+				log.Infof(p.Sprintf( "      Chars     %12d\n", fStat.Chars     ))
+				log.Infof(p.Sprintf( "      Valids    %12d\n", fStat.Valids    ))
+				log.Infof(p.Sprintf( "      Counted   %12d\n", fStat.Counted   ))
+				log.Infof(p.Sprintf( "      Skipped   %12d\n", fStat.Skipped   ))
+				log.Infof(p.Sprintf( "      Resets    %12d\n", fStat.Resets    ))
 
-				println("    **********")
+				log.Info("    **********")
 			}
-			println("  ----------")
+			log.Info("  ----------")
 		}
-		println("==========")
+		log.Info("==========")
 
-		println("saving to: ", outFile, "\n")
+		log.Info("saving to: ", outFile, "\n")
 
 		outfh, err := xopen.Wopen(outFile)
 		checkError(err)
@@ -403,7 +418,7 @@ var kmerCmd = &cobra.Command{
 
 		//outfh.Close()
 		
-		println("finished saving\n")
+		log.Info("finished saving\n")
 	},
 }
 
@@ -412,6 +427,7 @@ func init() {
 	RootCmd.AddCommand(kmerCmd)
 
 	kmerCmd.Flags().BoolP("validate-seq", "v", false, "validate bases according to the alphabet")
+	kmerCmd.Flags().BoolP("debug", "b", false, "debug")
 	kmerCmd.Flags().IntP("validate-seq-length", "V", 10000, "length of sequence to validate (0 for whole seq)")
 	kmerCmd.Flags().IntP("min-len", "m", -1, "only print sequences longer than the minimum length (-1 for no limit)")
 	kmerCmd.Flags().IntP("max-len", "M", -1, "only print sequences shorter than the maximum length (-1 for no limit)")

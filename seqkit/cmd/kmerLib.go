@@ -3,17 +3,7 @@ package cmd
 import (
 	"sort"
 	"golang.org/x/text/message"
-	//"github.com/op/go-logging"
-	//"github.com/shenwei356/go-logging"
 )
-
-//https://github.com/op/go-logging
-
-//var log = logging.MustGetLogger("Kmer")
-
-//var format = logging.MustStringFormatter(
-//	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
-//)
 
 var p = message.NewPrinter(message.MatchLanguage("en"))
 
@@ -26,7 +16,6 @@ type KmerUnit struct {
 type KmerArr []KmerUnit
 
 func (this *KmerArr) Print() {
-	//log.Debugf(p.Sprintf( "kmerSize  %12d\n", kmerSize    )
 	for i,j := range *this {
 		log.Debugf(p.Sprintf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count ))
 	}
@@ -40,6 +29,37 @@ func (this *KmerArr) Sort() {
 	sort.Slice((*this)[:], func(i, j int) bool {
 		return (*this)[i].Kmer < (*this)[j].Kmer
 	})
+	
+	count := len((*this))
+	lasti := 0
+	for i,_ := range (*this) {
+		if i != lasti {
+			if (*this)[i].Kmer == (*this)[lasti].Kmer {
+				if (*this)[lasti].Count < 254 {
+					if uint64((*this)[lasti].Count) + uint64((*this)[i].Count) > 254 {
+						(*this)[lasti].Count  = 254
+					} else {
+						(*this)[lasti].Count += (*this)[i].Count
+					}
+				}
+			} else {
+				lasti++
+				(*this)[lasti] = (*this)[i]
+			}
+		}
+	}
+	
+	if lasti != len((*this)) - 1 {
+		(*this) = (*this)[:lasti+1]
+	}
+	
+	sumCount := 0
+	for i,_ := range (*this) {
+		sumCount += int((*this)[i].Count)
+	}
+	
+	log.Debugf("KmerArr    :: Sort :: Count: ", count   )
+	log.Debugf("KmerArr    :: Sort :: Sum  : ", sumCount)
 	
 	log.Debugf("KmerArr    :: Sort", (*this))
 	(*this).Print()
@@ -154,6 +174,7 @@ func (this *KmerArr) Merge(that *KmerArr) {
 		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: lenThis   : ",   lenThis)
 		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexThis : ", indexThis)
 		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexThat : ", indexThat)
+		
 		boundaryThis := indexThis
 		if indexThis < lenThis {
 			boundaryThis = lenThis
@@ -182,18 +203,25 @@ func (this *KmerArr) Clear() {
 }
 
 func (this *KmerArr) isEqual(that *KmerArr) (bool, string) {
+	log.Debugf("KmerArr    :: isEqual", (*this), len((*this)), cap((*this)), (*that), len((*that)), cap((*that)))
+
 	if len(*this) != len(*that) {
+		log.Debugf("KmerArr    :: isEqual :: Sizes differ")
 		return false, "Sizes differ"
 	}
 	
 	for i,j := range (*this) {
 		if j.Kmer != (*that)[i].Kmer {
+			log.Debugf("KmerArr    :: isEqual :: Kmer out of order")
 			return false, "Kmer out of order"
 		}
 		if j.Count != (*that)[i].Count {
+			log.Debugf("KmerArr    :: isEqual :: Kmer count differ")
 			return false, "Kmer count differ"
 		}
 	}	
+
+	log.Debugf("KmerArr    :: isEqual :: OK")
 	return true, "OK"
 }
 
@@ -255,14 +283,37 @@ func (this *KmerHolder) Close() {
 
 
 func NewKmerHolder(kmerSize uint64) *KmerHolder {
+	max_kmer_size := (2 << (kmerSize*2)) / 2
+	
+	buffer_cap := 1000000
+	
+	if buffer_cap > max_kmer_size / 10 {
+		buffer_cap = max_kmer_size / 10
+	}
+	
+	if buffer_cap < 10000 {
+		buffer_cap = 10000
+	}
+	
+	kmer_cap := max_kmer_size / 100
+	if kmer_cap < buffer_cap {
+		kmer_cap = buffer_cap
+	}
+	
+	
 	var k KmerHolder = KmerHolder{}
 	k.KmerSize       = kmerSize
-	k.KmerLen        =        0
-	k.BufferLen      =        0
-	k.KmerCap        =     1000
-	k.BufferCap      =     1000
+	k.KmerLen        = 0
+	k.BufferLen      = 0
+	k.KmerCap        = kmer_cap
+	k.BufferCap      = buffer_cap
 	k.Kmer           = make(KmerArr, 0, k.KmerCap  )
 	k.Buffer         = make(KmerArr, 0, k.BufferCap)
 
+	log.Infof(p.Sprintf( "kmer size   %12d\n", k.KmerSize    ))
+	log.Infof(p.Sprintf( "max db size %12d\n", max_kmer_size ))
+	log.Infof(p.Sprintf( "kmer cap    %12d\n", k.KmerCap     ))
+	log.Infof(p.Sprintf( "buffer cap  %12d\n", k.BufferCap   ))
+	
 	return &k
 }

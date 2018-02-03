@@ -8,6 +8,7 @@ import (
 )
 
 func TestSort(t *testing.T) {
+    testList(t, 2, 3, 2, []uint64{1,1,2,3,4}            , KmerArr{{1,2},{2,1},{3,1},{4,1}})
     testList(t, 2, 3, 2, []uint64{1,2,3,4,5}            , KmerArr{{1,1},{2,1},{3,1},{4,1},{5,1}})
     testList(t, 2, 3, 2, []uint64{1,2,3,4,5,6,7,8,9,10} , KmerArr{{1,1},{2,1},{3,1},{4,1},{5,1},{6,1},{7,1},{8,1},{9,1},{10,1}})
     testList(t, 2, 3, 2, []uint64{1,2,3,4,5,1,2,3,4,5}  , KmerArr{{1,2},{2,2},{3,2},{4,2},{5,2}})
@@ -18,7 +19,7 @@ func TestSort(t *testing.T) {
 }
 
 func testList(t *testing.T, kmerSize uint64, KmerCap int, BufferCap int, list []uint64, check KmerArr) {
-    logging.SetLevel(logging.INFO, "seqkit")
+    logging.SetLevel(logging.DEBUG, "seqkit")
     
     var res       = NewKmerHolder(kmerSize)
 	res.KmerSize  = kmerSize
@@ -27,6 +28,7 @@ func testList(t *testing.T, kmerSize uint64, KmerCap int, BufferCap int, list []
 	res.Kmer      = make(KmerArr, 0, res.KmerCap  )
 	res.Buffer    = make(KmerArr, 0, res.BufferCap)
  
+ 	log.Debug("testing", list)
  	log.Debug("before")
     res.Print()
     log.Debug("")
@@ -50,4 +52,6 @@ func testList(t *testing.T, kmerSize uint64, KmerCap int, BufferCap int, list []
                 "Got"     , res.Kmer,
                 "Error"   , msg)
     }
+    
+    t.Log("==========================")
 }
