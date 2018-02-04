@@ -271,7 +271,7 @@ var kmerCmd = &cobra.Command{
 
 					if ! fastxReader.IsFastq {
 						statsSeqP.Chars += 1
-						if profile && statsSeqP.Chars == 1000 {
+						if profile && statsSeqP.Chars == 10000 {
 							break
 						}
 					}

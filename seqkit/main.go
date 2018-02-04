@@ -52,9 +52,7 @@ func init() {
 }
 
 func main() {
-    //flag.Parse()
-
-	// go tool pprof /usr/local/bin/seqkit pprof
+	// go tool pprof ./seqkit pprof
 	cpuprofilefile, cpuprofile := os.LookupEnv("CPUPROFILE")
     if cpuprofile {
         f, err := os.Create(cpuprofilefile)
@@ -70,7 +68,7 @@ func main() {
 	
 	cmd.Execute()
 
-	// go tool pprof --alloc_space /usr/local/bin/seqkit mprof
+	// go tool pprof --alloc_space ./seqkit mprof
     memprofilefile, memprofile := os.LookupEnv("MEMPROFILE")
     if memprofile {
         f, err := os.Create(memprofilefile)
