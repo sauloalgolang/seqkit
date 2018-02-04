@@ -24,7 +24,8 @@ import (
 	"io"
 	"os"
 	"runtime"
-	// "runtime/pprof"
+	"runtime/pprof"
+	"log"
 
 	colorable "github.com/mattn/go-colorable"
 	"github.com/shenwei356/go-logging"
@@ -37,6 +38,9 @@ var logFormat = logging.MustStringFormatter(
 	`%{color}[%{level:.4s}]%{color:reset} %{message}`,
 )
 
+//var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
+//var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+
 func init() {
 	var stderr io.Writer = os.Stderr
 	if runtime.GOOS == "windows" {
@@ -48,15 +52,35 @@ func init() {
 }
 
 func main() {
-	// go tool pprof /usr/local/bin/seqkit pprof
-	// f, _ := os.Create("pprof")
-	// pprof.StartCPUProfile(f)
-	// defer pprof.StopCPUProfile()
+    //flag.Parse()
 
+	// go tool pprof /usr/local/bin/seqkit pprof
+	cpuprofilefile, cpuprofile := os.LookupEnv("CPUPROFILE")
+    if cpuprofile {
+        f, err := os.Create(cpuprofilefile)
+        if err != nil {
+            log.Fatal("could not create CPU profile: ", err)
+        }
+        if err := pprof.StartCPUProfile(f); err != nil {
+            log.Fatal("could not start CPU profile: ", err)
+        }
+        defer pprof.StopCPUProfile()
+    }
+
+	
 	cmd.Execute()
 
 	// go tool pprof --alloc_space /usr/local/bin/seqkit mprof
-	// f2, _ := os.Create("mprof")
-	// pprof.WriteHeapProfile(f2)
-	// defer f2.Close()
+    memprofilefile, memprofile := os.LookupEnv("MEMPROFILE")
+    if memprofile {
+        f, err := os.Create(memprofilefile)
+        if err != nil {
+            log.Fatal("could not create memory profile: ", err)
+        }
+        runtime.GC() // get up-to-date statistics
+        if err := pprof.WriteHeapProfile(f); err != nil {
+            log.Fatal("could not write memory profile: ", err)
+        }
+        f.Close()
+    }
 }

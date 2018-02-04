@@ -72,6 +72,7 @@ var kmerCmd = &cobra.Command{
 
 		validateSeq := getFlagBool(cmd, "validate-seq")
 		debug := getFlagBool(cmd, "debug")
+		profile := getFlagBool(cmd, "profile")
 		validateSeqLength := getFlagValidateSeqLength(cmd, "validate-seq-length")
 		minLen := getFlagInt(cmd, "min-len")
 		maxLen := getFlagInt(cmd, "max-len")
@@ -119,6 +120,10 @@ var kmerCmd = &cobra.Command{
 		maxCount           := uint64((1 << uint(dbSize * 8))-1)
 
 		p := message.NewPrinter(message.MatchLanguage("en"))
+		
+		if profile {
+			log.Info( "profile" )
+		}		
 		
 		log.Info( "max count: ", maxCount )
 
@@ -225,7 +230,15 @@ var kmerCmd = &cobra.Command{
 				stats     .Size           += seqLen
 				statsFileP.Size           += seqLen
 				
-				if ! fastxReader.IsFastq {
+				if fastxReader.IsFastq {
+					stats     .Lines += 1
+					statsFileP.Lines += 1
+					config.LineWidth  = 0
+					
+					if profile && statsFileP.Lines == 100 {
+						break
+					}
+				} else {
 					log.Infof(p.Sprintf( "Parsing '%s' %12d\n", record.Name, seqLen ))
 
 					if statsSeq[file] == nil {
@@ -240,10 +253,6 @@ var kmerCmd = &cobra.Command{
 					stats     .Registers      += 1
 					statsFileP.Registers      += 1
 					statsSeqP .Size            = seqLen
-				} else {
-					stats     .Lines += 1
-					statsFileP.Lines += 1
-					config.LineWidth  = 0
 				}
 				
 				val           = 0
@@ -262,6 +271,9 @@ var kmerCmd = &cobra.Command{
 
 					if ! fastxReader.IsFastq {
 						statsSeqP.Chars += 1
+						if profile && statsSeqP.Chars == 1000 {
+							break
+						}
 					}
 					
 					cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
@@ -428,6 +440,7 @@ func init() {
 
 	kmerCmd.Flags().BoolP("validate-seq", "v", false, "validate bases according to the alphabet")
 	kmerCmd.Flags().BoolP("debug", "b", false, "debug")
+	kmerCmd.Flags().BoolP("profile", "p", false, "profile")
 	kmerCmd.Flags().IntP("validate-seq-length", "V", 10000, "length of sequence to validate (0 for whole seq)")
 	kmerCmd.Flags().IntP("min-len", "m", -1, "only print sequences longer than the minimum length (-1 for no limit)")
 	kmerCmd.Flags().IntP("max-len", "M", -1, "only print sequences shorter than the maximum length (-1 for no limit)")
