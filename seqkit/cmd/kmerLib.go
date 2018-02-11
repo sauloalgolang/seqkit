@@ -1,9 +1,17 @@
 package cmd
 
 import (
+	"runtime"
 	"sort"
 	"golang.org/x/text/message"
+	"github.com/shenwei356/go-logging"
 )
+
+//https://stackoverflow.com/questions/6878590/the-maximum-value-for-an-int-type-in-go
+const MaxUint = ^uint64(0) 
+const MinUint = 0 
+const MaxInt = int64(MaxUint >> 1) 
+const MinInt = -MaxInt - 1
 
 var p = message.NewPrinter(message.MatchLanguage("en"))
 
@@ -16,8 +24,16 @@ type KmerUnit struct {
 type KmerArr []KmerUnit
 
 func (this *KmerArr) Print() {
-	for i,j := range *this {
-		log.Debugf(p.Sprintf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count ))
+	lvl, _ := logging.LogLevel("DEBUG")
+	(*this).PrintLevel(lvl)
+}
+
+func (this *KmerArr) PrintLevel(lvl logging.Level) {
+	if logging.GetLevel("seqkit") >= lvl {
+		for i,j := range *this {
+			//log.Debugf(p.Sprintf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count ))
+			p.Printf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count )
+		}
 	}
 }
 
@@ -131,202 +147,6 @@ func (this *KmerHolder) Print() {
 	this.Buffer.Print()
 }
 
-func (this *KmerHolder) Sort2() {
-	//https://stackoverflow.com/questions/28999735/what-is-the-shortest-way-to-simply-sort-an-array-of-structs-by-arbitrary-field
-
-	if len(this.Buffer) < ( 4 * (cap(this.Buffer) / 5)) {
-		return
-	}
-	
-	log.Infof("KmerArr    :: Sort %p Len %d Cap %d Prop %f LastBufferLen %d", this.Buffer, len(this.Buffer), cap(this.Buffer), float64(len(this.Buffer)) / float64(cap(this.Buffer)) * 100.0, this.LastBufferLen)
-	
-	//this.Buffer.Print()
-
-	if this.LastBufferLen == 0 {
-		//log.Infof("KmerArr    :: Sort :: All")
-		sortSlice(&this.Buffer)
-	} else {
-		//log.Infof("KmerArr    :: Sort :: Part")
-		//log.Infof("\n",this.Buffer[this.LastBufferLen:])
-
-		sortSliceOffset(&this.Buffer, this.LastBufferLen)
-		sortSlice(&this.Buffer)
-	}
-	
-	//this.Buffer.Print()
-
-	count := len(this.Buffer)
-	lasti := mergeSortedSliceValues(&this.Buffer)
-	
-	if lasti != len(this.Buffer) - 1 {
-		this.Buffer = this.Buffer[:lasti+1]
-	}
-	
-	sumCount := 0
-	for i,_ := range this.Buffer {
-		sumCount += int(this.Buffer[i].Count)
-	}
-	
-	log.Debugf("KmerArr    :: Sort :: Count %d", count   )
-	log.Debugf("KmerArr    :: Sort :: Sum   %d", sumCount)
-	log.Debugf("KmerArr    :: Sort :: Len   %d", len(this.Buffer))
-	log.Debugf("KmerArr    :: Sort :: Cap   %d", cap(this.Buffer))
-	log.Debugf("KmerArr    :: Sort :: %p", this.Buffer)
-
-	if len(this.Buffer) >= ( 4 * (cap(this.Buffer) / 5)) {
-		log.Debugf("KmerArr    :: Sort :: Extend :: %p", this.Buffer)
-		newCap := (cap(this.Buffer) / 4 * 6)
-		log.Debugf("KmerArr    :: Sort :: Extend :: new cap %d", newCap)
-		
-		t := make(KmerArr, len(this.Buffer), newCap)
-		copy(t, this.Buffer)
-		this.Buffer = t
-		
-		log.Infof("KmerArr    :: Sort :: Extend :: Len %d\n", len(this.Buffer))
-		log.Infof("KmerArr    :: Sort :: Extend :: Cap %d\n", cap(this.Buffer))
-		log.Infof("KmerArr    :: Sort :: Extend :: %p\n", this.Buffer)
-		
-		//log.Debugf("KmerArr    :: Sort :: Extend :: Len %d: ", len(this.Buffer))
-		//log.Debugf("KmerArr    :: Sort :: Extend :: Cap %d: ", cap(this.Buffer))
-		//log.Debugf("KmerArr    :: Sort :: Extend :: %p", this.Buffer)
-	}
-	
-	//this.Buffer.Print()
-
-	this.KmerLen = len(this.Kmer)
-	this.BufferLen = len(this.Buffer)
-	this.LastBufferLen = len(this.Buffer)
-}
-
-func (this *KmerHolder) Merge(arr_dst *KmerArr, arr_src *KmerArr) {
-	log.Debugf("KmerArr    :: Merge :: Begin :: THIS: %p LEN %d CAP %d", (*arr_dst), len((*arr_dst)), cap((*arr_dst)))
-	log.Debugf("KmerArr    :: Merge :: Begin :: THAT: %p LEN %d CAP %d", (*arr_src), len((*arr_src)), cap((*arr_src)))
-
-	lenDst   := len((*arr_dst))
-	lenSrc   := len((*arr_src))
-	lenAll   := lenDst + lenSrc
-
-	indexDst := 0
-	indexSrc := 0
-
-	if lenDst == 0 {
-		log.Debugf("KmerArr    :: Merge :: Copy :: THIS: %p LEN %d CAP %d", (*arr_dst), len((*arr_dst)), cap((*arr_dst)))
-		(*arr_dst) = make(KmerArr, len((*arr_src)), len((*arr_src)))
-		copy((*arr_dst), (*arr_src))
-		
-	} else {
-		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: THIS: %p LEN %d CAP %d", (*arr_dst), len((*arr_dst)), cap((*arr_dst)))
-
-		(*arr_dst) = append((*arr_dst), make(KmerArr, lenAll, lenAll)...)
-		
-		var dstKmer  *KmerUnit
-		var srcKmer  *KmerUnit
-		
-		var dstKmerK *uint64
-		var srcKmerK *uint64
-		
-		var dstKmerC *uint8
-		var srcKmerC *uint8
-				
-		for {
-			log.Debugf("")
-			log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexDst : %d",   indexDst )
-			log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc : %d",   indexSrc )
-			if indexDst == lenDst { // no more this
-				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexDst == lenDst" )
-				if indexSrc == lenSrc { // no more that. should be fully sorted
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc == lenSrc. breaking" )
-					break
-				} else { // still that. append
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc != lenSrc. appending" )
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc != lenSrc. appending :: indexDst: ", indexDst )
-					for ;indexSrc<lenSrc; indexSrc++ {
-						(*arr_dst)[indexDst] = (*arr_src)[indexSrc]
-						indexDst++
-						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc != lenSrc. appending :: indexDst: %d indexSrc: %d", indexDst, indexSrc )
-					}
-					break
-				}
-			} else { // still has this
-				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexDst != lenDst" )
-				if indexSrc == lenSrc { // no more that. should be fully sorted
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc == lenSrc. breaking" )
-					break
-				
-				} else { // still this and still that. keep sorting
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc != lenSrc. merging" )
-					
-					dstKmer  = &(*arr_dst)[indexDst]
-					srcKmer  = &(*arr_src)[indexSrc]
-					
-					dstKmerK = &dstKmer.Kmer
-					srcKmerK = &srcKmer.Kmer
-					
-					dstKmerC = &dstKmer.Count
-					srcKmerC = &srcKmer.Count
-					
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: dstKmerK : %d", (*dstKmerK))
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: srcKmerK : %d", (*srcKmerK))
-				
-					if *dstKmerK == *srcKmerK {
-						*dstKmerC = sumInt8( *dstKmerC, *srcKmerC )
-						
-						indexDst++
-						indexSrc++
-						
-					} else if *dstKmerK < *srcKmerK {
-						indexDst++
-						
-					} else if *dstKmerK > *srcKmerK {
-						(*arr_dst)[indexDst], (*arr_src)[indexSrc] = (*arr_src)[indexSrc], (*arr_dst)[indexDst]
-
-						sortSliceOffset(arr_src, indexSrc)
-												
-						//indexSrcK := indexSrc
-						//for {
-						//	if indexSrcK < lenSrc-1 && (*arr_src)[indexSrcK].Kmer > (*arr_src)[indexSrcK+1].Kmer {
-						//		(*arr_src)[indexSrcK], (*arr_src)[indexSrcK+1] = (*arr_src)[indexSrcK+1], (*arr_src)[indexSrcK]
-						//		indexSrcK++
-						//	} else {
-						//		break
-						//	}
-						//}
-						//indexDst++
-					}
-				}
-			}
-		}
-	
-		log.Debugf( "this" )
-		arr_dst.Print()
-
-		log.Debugf( "that" )
-		arr_src.Print()
-
-		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: lenDst   : %d",   lenDst)
-		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexDst : %d", indexDst)
-		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc : %d", indexSrc)
-		
-		boundaryThis := indexDst
-		if indexDst < lenDst {
-			boundaryThis = lenDst
-		}
-	
-		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Clear :: THIS: %p LEN %d CAP %d", (*arr_dst), len((*arr_dst)), cap((*arr_dst)))
-		(*arr_dst) = (*arr_dst)[:boundaryThis]
-		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Clear :: THIS: %p LEN %d CAP %d", (*arr_dst), len((*arr_dst)), cap((*arr_dst)))
-	}
-	
-	(*arr_src).Clear()
-	
-	log.Debugf("KmerArr    :: Merge :: Finish :: THIS: %p LEN %d CAP %d", (*arr_dst), len((*arr_dst)), cap((*arr_dst)))
-	log.Debugf("KmerArr    :: Merge :: Finish :: THAT: %p LEN %d CAP %d", (*arr_src), len((*arr_src)), cap((*arr_src)))
-}
-
-
-
-
-
 
 func (this *KmerHolder) Sort() {
 	//https://stackoverflow.com/questions/28999735/what-is-the-shortest-way-to-simply-sort-an-array-of-structs-by-arbitrary-field
@@ -335,215 +155,251 @@ func (this *KmerHolder) Sort() {
 		return
 	}
 	
-	log.Infof("KmerArr    :: Sort %p Len %d Cap %d Prop %f LastBufferLen %d", this.Buffer, len(this.Buffer), cap(this.Buffer), float64(len(this.Buffer)) / float64(cap(this.Buffer)) * 100.0, this.LastBufferLen)
+	//lvlD, _ := logging.LogLevel("DEBUG")
+	lvlI, _ := logging.LogLevel("INFO")
 	
-	//this.Buffer.Print()
-	lasti := 0
-	count := len(this.Buffer)
-	sumCountBefore := 0
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Before :: %p Len %3d Cap %3d Prop %6.2f LastBufferLen %3d", this.Buffer, len(this.Buffer), cap(this.Buffer), float64(len(this.Buffer)) / float64(cap(this.Buffer)) * 100.0, this.LastBufferLen)
+	
+	lasti           := 0
+	lenBufferBefore := len(this.Buffer)
+	sumCountBefore  := 0
 
-	if this.LastBufferLen == 0 {
+	var dstKmer  *KmerUnit
+	var srcKmer  *KmerUnit
+	
+	var dstKmerK *uint64
+	var srcKmerK *uint64
+	
+	var dstKmerC *uint8
+	var srcKmerC *uint8
+
+	var minK uint64 = MaxUint
+	var maxK uint64 = 0
+	
+	if this.LastBufferLen == 0 { // first adding
 		//log.Infof("KmerArr    :: Sort :: All")
 
-		for i,_ := range this.Buffer {
-			sumCountBefore += int(this.Buffer[i].Count)
-		}
-
-		sort.Slice(this.Buffer[:], func(i, j int) bool {
-			return this.Buffer[i].Kmer < this.Buffer[j].Kmer
-		})
+		sortSlice(&this.Buffer) // sort buffer
 
 		for i,_ := range this.Buffer {
+			dstKmer  = &this.Buffer[lasti]
+			srcKmer  = &this.Buffer[i]
+
+			dstKmerK = &dstKmer.Kmer
+			srcKmerK = &srcKmer.Kmer
+
+			dstKmerC = &dstKmer.Count
+			srcKmerC = &srcKmer.Count
+
+			if *srcKmerK < *dstKmerK {
+				if *srcKmerK < minK {
+					minK = *srcKmerK
+				}
+				if *dstKmerK > maxK {
+					maxK = *dstKmerK
+				}
+			} else {
+				if *dstKmerK < minK {
+					minK = *dstKmerK
+				}
+				if *srcKmerK > maxK {
+					maxK = *srcKmerK
+				}
+			}
+			
+			sumCountBefore += int(*srcKmerC)
+
 			if i != lasti {
-				if this.Buffer[i].Kmer == this.Buffer[lasti].Kmer {
-					if this.Buffer[lasti].Count < 254 {
-						if uint64(this.Buffer[lasti].Count) + uint64(this.Buffer[i].Count) > 254 {
-							this.Buffer[lasti].Count  = 254
-						} else {
-							this.Buffer[lasti].Count += this.Buffer[i].Count
-						}
-					}
-				} else {
-					lasti++
+				if *dstKmerK == *srcKmerK { // same key
+					*dstKmerC = sumInt8( *dstKmerC, *srcKmerC )
+				} else { // different key
+					lasti++ // next last
+					// swap next and continue loop
 					this.Buffer[lasti], this.Buffer[i] = this.Buffer[i], this.Buffer[lasti]
 				}
 			}
 		}
 	} else {
-		for i,_ := range this.Buffer[:this.LastBufferLen] {
+		for i,_ := range this.Buffer { //sum buffer
 			sumCountBefore += int(this.Buffer[i].Count)
 		}
 
-		log.Infof("KmerArr    :: Sort :: Part :: Before")
-		this.Buffer.Print()
-
-		sort.Slice(this.Buffer[this.LastBufferLen:], func(i, j int) bool {
-			return this.Buffer[this.LastBufferLen+i].Kmer < this.Buffer[this.LastBufferLen+j].Kmer
-		})
-		
-		log.Infof("KmerArr    :: Sort :: Part :: During")
-		this.Buffer.Print()
-		
 		indexDst := 0
 		indexSrc := this.LastBufferLen
 	
 		lenDst   := this.LastBufferLen
 		lenSrc   := len(this.Buffer)
-		
-		var dstKmer  *KmerUnit
-		var srcKmer  *KmerUnit
-		
-		var dstKmerK *uint64
-		var srcKmerK *uint64
-		
-		var dstKmerC *uint8
-		var srcKmerC *uint8
-				
-		for {
-			if indexDst == lenDst { // no more this
-				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexDst (%d) == lenDst (%d)", indexDst, lenDst )
-				if indexSrc == lenSrc { // no more that. should be fully sorted
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%d) == lenSrc (%d). breaking", indexSrc, lenSrc )
-					break
-				} else { // still that. append
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%d) != lenSrc (%d). appending", indexSrc, lenSrc )
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%d) != lenSrc (%d). appending :: indexDst: %d", indexSrc, lenSrc, indexDst )
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%d) != lenSrc (%d). appending :: indexDst: %d (%d=%d) indexSrc: %d (%d=%d)", indexSrc, lenSrc, indexDst, this.Buffer[indexDst].Kmer, this.Buffer[indexDst].Count, indexSrc, this.Buffer[indexSrc].Kmer, this.Buffer[indexSrc].Count )
-					for ;indexSrc<lenSrc; indexSrc++ {
-						if this.Buffer[indexDst].Kmer == this.Buffer[indexSrc].Kmer {
-							if this.Buffer[indexDst].Count < 254 {
-								if uint64(this.Buffer[indexDst].Count) + uint64(this.Buffer[indexSrc].Count) > 254 {
-									this.Buffer[indexDst].Count  = 254
-									log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Fulled")
-								} else {
-									this.Buffer[indexDst].Count += this.Buffer[indexSrc].Count
-									log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Summed")
-								}
-							} else {
-								log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Full")
-							}
-						} else {
-							this.Buffer[indexDst] = this.Buffer[indexSrc]
-							indexDst++
-						}
-					}
-					break
-				}
-			} else { // still has this
-				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexDst (%d) != lenDst (%d)", indexDst, lenDst  )
-				if indexSrc == lenSrc { // no more that. should be fully sorted
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%d) == lenSrc (%d). breaking", indexSrc, lenSrc )
-					break
-				
-				} else { // still this and still that. keep sorting
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%d) != lenSrc (%d). merging", indexSrc, lenSrc )
-					
-					dstKmer  = &this.Buffer[indexDst]
-					srcKmer  = &this.Buffer[indexSrc]
-					
-					dstKmerK = &dstKmer.Kmer
-					srcKmerK = &srcKmer.Kmer
-					
-					dstKmerC = &dstKmer.Count
-					srcKmerC = &srcKmer.Count
-					
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: dstKmerK : %d", (*dstKmerK))
-					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: srcKmerK : %d", (*srcKmerK))
-				
-					if *dstKmerK == *srcKmerK {
-						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Adding")
-						if *dstKmerC < 254 {
-							if uint64(*dstKmerC) + uint64(*srcKmerC) > 254 {
-								*dstKmerC  = 254
-								log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Fulled")
-							} else {
-								*dstKmerC += *srcKmerC
-								log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Summed")
-							}
-						} else {
-							log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Full")
-						}
-						
-						//indexDst++
-						indexSrc++
-						
-					} else if *dstKmerK < *srcKmerK {
-						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Next Dst")
-						indexDst++
-						
-					} else if *dstKmerK > *srcKmerK {
-						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Swapping")
 
-						this.Buffer[indexDst], this.Buffer[indexSrc] = this.Buffer[indexSrc], this.Buffer[indexDst]
-						
-						sort.Slice(this.Buffer[indexSrc:], func(i, j int) bool {
-							return this.Buffer[indexSrc+i].Kmer < this.Buffer[indexSrc+j].Kmer
-						})
-						
-						//indexSrcK := indexSrc
-						//for {
-						//	if indexSrcK < lenSrc-1 && (*arr_src)[indexSrcK].Kmer > (*arr_src)[indexSrcK+1].Kmer {
-						//		(*arr_src)[indexSrcK], (*arr_src)[indexSrcK+1] = (*arr_src)[indexSrcK+1], (*arr_src)[indexSrcK]
-						//		indexSrcK++
-						//	} else {
-						//		break
-						//	}
-						//}
-						//indexDst++
+		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Before")
+		this.Buffer.Print()
+
+		sortSliceOffset(&this.Buffer, lenDst)
+		
+		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: During")
+		this.Buffer.Print()
+		
+		for {
+			if indexSrc == lenSrc { // no more buffer. stop
+				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%03d) == lenSrc (%03d). breaking", indexSrc, lenSrc )
+				break
+			} else { // still has buffer
+				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: indexSrc (%03d) != lenSrc (%03d). merging", indexSrc, lenSrc )
+				
+				dstKmer  = &this.Buffer[indexDst]
+				srcKmer  = &this.Buffer[indexSrc]
+				
+				dstKmerK = &dstKmer.Kmer
+				srcKmerK = &srcKmer.Kmer
+				
+				dstKmerC = &dstKmer.Count
+				srcKmerC = &srcKmer.Count
+
+				if *srcKmerK < *dstKmerK {
+					if *srcKmerK < minK {
+						minK = *srcKmerK
 					}
+					if *dstKmerK > maxK {
+						maxK = *dstKmerK
+					}
+				} else {
+					if *dstKmerK < minK {
+						minK = *dstKmerK
+					}
+					if *srcKmerK > maxK {
+						maxK = *srcKmerK
+					}
+				}
+				
+				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: dstIndex %03d srcIndex %03d",  indexDst,  indexSrc)
+				log.Debugf("KmerArr    :: Merge :: Merge & Sort :: dstKmerK %03d srcKmerK %03d", *dstKmerK, *srcKmerK)
+
+				if *dstKmerK == *srcKmerK { //same kmer
+					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Adding")
+
+					//sum
+					*dstKmerC = sumInt8( *dstKmerC, *srcKmerC )
+					
+					//next src
+					indexSrc++
+					
+				} else if *dstKmerK < *srcKmerK { //db < buffer
+					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Out of order")
+					
+					if indexDst >= lenDst {
+						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Out of order :: Swapping :: indexDst %03d LastBufferLen %03d", indexDst, this.LastBufferLen)
+						this.Buffer.Print()
+						this.Buffer[indexDst], this.Buffer[indexSrc] = this.Buffer[indexSrc], this.Buffer[indexDst]
+
+						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Out of order :: Sorting")
+						this.Buffer.Print()
+						sortSliceOffset(&this.Buffer, indexSrc)
+
+						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Out of order :: Sorted")
+						this.Buffer.Print()
+						lenDst = indexDst + 1
+						indexSrc++
+					} else {
+						log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Out of order :: Next Dst")
+						
+						this.Buffer.Print()
+							
+						//next db
+						indexDst++
+					}
+				} else if *dstKmerK > *srcKmerK { //db > buffer. worst case scnenario
+					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Swapping")
+
+					this.Buffer.Print()
+
+					//swapping values
+					this.Buffer[indexDst], this.Buffer[indexSrc] = this.Buffer[indexSrc], this.Buffer[indexDst]
+					
+					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Sorting buffer %03d", indexSrc)
+
+					this.Buffer.Print()
+
+					//sorting buffer
+					sortSliceOffset(&this.Buffer, indexSrc)
+
+					log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Sorted")
+
+					this.Buffer.Print()
 				}
 			}
 		}
 
-		log.Infof("KmerArr    :: Sort :: Part :: After :: indexDst: (%d)", indexDst)
+		log.Debugf("KmerArr    :: Merge :: Merge & Sort :: After :: indexDst: (%03d)", indexDst)
 		this.Buffer.Print()
 
-		lasti = indexDst
+		if indexDst < lenDst {
+			lasti = lenDst - 1
+		} else {
+			lasti = indexDst
+		}
 	}
 
 	if lasti != len(this.Buffer) - 1 {
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Trimming :: last I %3d Len Buffer %3d", lasti, len(this.Buffer))
 		this.Buffer = this.Buffer[:lasti+1]
 	}
 	
-	sumCount := 0
+	sumCountAfter := 0
 	for i,_ := range this.Buffer {
-		sumCount += int(this.Buffer[i].Count)
+		sumCountAfter += int(this.Buffer[i].Count)
 	}
 	
-	log.Debugf("KmerArr    :: Sort :: Count %d", count           )
-	log.Debugf("KmerArr    :: Sort :: Sum B %d", sumCountBefore  )
-	log.Debugf("KmerArr    :: Sort :: Sum A %d", sumCount        )
-	log.Debugf("KmerArr    :: Sort :: Len   %d", len(this.Buffer))
-	log.Debugf("KmerArr    :: Sort :: Cap   %d", cap(this.Buffer))
-	log.Debugf("KmerArr    :: Sort :: %p", this.Buffer)
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Len Buffer Before %3d", lenBufferBefore   )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Last Buffer Len   %3d", this.LastBufferLen)
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Last I            %3d", lasti             )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Sum B             %3d", sumCountBefore    )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Sum A             %3d", sumCountAfter     )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Len               %3d", len(this.Buffer)  )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Cap               %3d", cap(this.Buffer)  )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Min K             %3d", minK              )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: Max K             %3d", maxK              )
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: %p", this.Buffer)
 
-	log.Infof("KmerArr    :: Sort :: Final")
+	log.Debugf("KmerArr    :: Merge :: Merge & Sort :: Final")
+
 	this.Buffer.Print()
 
-
+	if sumCountBefore != sumCountAfter {
+		log.Panic("sum differs")
+	}
+	
 	if len(this.Buffer) >= ( 4 * (cap(this.Buffer) / 5)) {
-		log.Debugf("KmerArr    :: Sort :: Extend :: %p", this.Buffer)
 		newCap := (cap(this.Buffer) / 4 * 6)
-		log.Debugf("KmerArr    :: Sort :: Extend :: new cap %d", newCap)
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: Before :: Len     %d", len(this.Buffer))
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: Before :: Cap     %d", cap(this.Buffer))
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: Before :: New Cap %d", newCap)
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: Before :: Address %p", this.Buffer)
 		
 		t := make(KmerArr, len(this.Buffer), newCap)
 		copy(t, this.Buffer)
 		this.Buffer = t
 		
-		log.Infof("KmerArr    :: Sort :: Extend :: Len %d\n", len(this.Buffer))
-		log.Infof("KmerArr    :: Sort :: Extend :: Cap %d\n", cap(this.Buffer))
-		log.Infof("KmerArr    :: Sort :: Extend :: %p\n", this.Buffer)
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: After  :: Len     %d", len(this.Buffer))
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: After  :: Cap     %d", cap(this.Buffer))
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: After  :: New Cap %d", newCap)
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: After  :: Address %p", this.Buffer)
 		
-		//log.Debugf("KmerArr    :: Sort :: Extend :: Len %d: ", len(this.Buffer))
-		//log.Debugf("KmerArr    :: Sort :: Extend :: Cap %d: ", cap(this.Buffer))
-		//log.Debugf("KmerArr    :: Sort :: Extend :: %p", this.Buffer)
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: Running GC")
+		runtime.GC()
+		log.Infof("KmerArr    :: Merge :: Merge & Sort :: Extend :: GC Run")
 	}
 	
 	//this.Buffer.Print()
 
+	if len(this.Buffer) < this.LastBufferLen {
+		log.Panicf("BUFFER REDUCED SIZE")
+	}
+	
 	this.KmerLen = len(this.Kmer)
 	this.BufferLen = len(this.Buffer)
 	this.LastBufferLen = len(this.Buffer)
+
+	log.Infof("KmerArr    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastBufferLen %3d", this.Buffer, len(this.Buffer), cap(this.Buffer), float64(len(this.Buffer)) / float64(cap(this.Buffer)) * 100.0, this.LastBufferLen)
+	this.Buffer.PrintLevel(lvlI)
 }
 
 
