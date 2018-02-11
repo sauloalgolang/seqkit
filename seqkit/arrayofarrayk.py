@@ -28,6 +28,24 @@ Num Uniq Kmers         512
 real    0m09.001s
 user    0m06.781s
 sys     0m06.016s
+
+
+
+
+time ./seqkit kmer ../../../S_lycopersicum_chromosomes.2.50.fa.gz
+real    7m17.361s
+user    7m52.531s
+sys     5m55.500s
+
+[INFO] Size       823,944,041
+[INFO] Registers           13
+[INFO] Lines                0
+[INFO] Chars      823,944,041
+[INFO] Valids     737,636,348
+[INFO] Counted    737,528,493
+[INFO] Skipped              0
+[INFO] Resets      86,307,693
+
 """
 import sys
 import gzip
