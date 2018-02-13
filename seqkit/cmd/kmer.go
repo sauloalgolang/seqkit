@@ -352,10 +352,13 @@ var kmerCmd = &cobra.Command{
 		var kcoun uint64 = 0
 		var ksums uint64 = 0
 		
+		log.Infof("Closing")
 		res.Close()
+		//log.Infof("Printing")
+		//res.Print()
 		
 		for i:=0; i < res.KmerLen; i++ {
-			kmer  := res.Get(i)
+			kmer  := res.GetByIndex(i)
 			//print( "RES i: ", i, " c: ", c, "\n" );
 			kcoun += 1
 			ksums += uint64(kmer.Count)

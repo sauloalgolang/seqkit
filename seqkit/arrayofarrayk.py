@@ -33,18 +33,36 @@ sys     0m06.016s
 
 
 time ./seqkit kmer ../../../S_lycopersicum_chromosomes.2.50.fa.gz
-real    7m17.361s
-user    7m52.531s
-sys     5m55.500s
+               WITHOUT SEARCH |         WITH SEARCH
+                         COPY |        COPY       POINTER
+real                7m17.361s |   1m40.241s     1m35.382s
+user                7m52.531s |   1m47.531s     1m42.625s
+sys                 5m55.500s |   1m19.031s     1m14.813s
+[INFO] Size       823,944,041 | 823,944,041   823,944,041
+[INFO] Registers           13 |          13            13
+[INFO] Lines                0 |           0             0
+[INFO] Chars      823,944,041 | 823,944,041   823,944,041
+[INFO] Valids     737,636,348 | 737,636,348   737,636,348
+[INFO] Counted    737,528,493 | 737,528,493   737,528,493
+[INFO] Skipped              0 |           0             0
+[INFO] Resets      86,307,693 |  86,307,693   86,307,693
 
-[INFO] Size       823,944,041
-[INFO] Registers           13
-[INFO] Lines                0
-[INFO] Chars      823,944,041
-[INFO] Valids     737,636,348
-[INFO] Counted    737,528,493
-[INFO] Skipped              0
-[INFO] Resets      86,307,693
+
+
+time ./seqkit kmer -k 11 ../../../S_lycopersicum_chromosomes.2.50.fa.gz
+               WITHOUT SEARCH |         WITH SEARCH
+                         COPY |        COPY       POINTER
+real               91m38.008s |  60m59.557s    66m48.944s
+user              100m23.047s |  67m29.797s    73m37.469s
+sys                78m28.188s |  52m41.609s    55m52.094s
+[INFO] Size       823,944,041 | 823,944,041   823,944,041
+[INFO] Registers           13 |          13            13
+[INFO] Lines                0 |           0             0
+[INFO] Chars      823,944,041 | 823,944,041   823,944,041
+[INFO] Valids     737,636,348 | 737,636,348   737,636,348
+[INFO] Counted    737,366,752 | 737,366,752   737,366,752
+[INFO] Skipped              0 |           0             0
+[INFO] Resets      86,307,693 |  86,307,693    86,307,693
 
 """
 import sys
