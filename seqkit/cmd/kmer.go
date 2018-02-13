@@ -51,6 +51,9 @@ type StatMap    map[string]*Stat
 type StatMapMap map[string]StatMap
 
 
+		
+		
+
 
 
 
@@ -76,9 +79,9 @@ var kmerCmd = &cobra.Command{
 		validateSeqLength := getFlagValidateSeqLength(cmd, "validate-seq-length")
 		minLen := getFlagInt(cmd, "min-len")
 		maxLen := getFlagInt(cmd, "max-len")
-		kmerSize := uint64(getFlagPositiveInt(cmd, "kmer-size"))
+		kmerSize := int(getFlagPositiveInt(cmd, "kmer-size"))
 		dbSize := getFlagPositiveInt(cmd, "db-size")
-
+		
 		if minLen >= 0 && maxLen >= 0 && minLen > maxLen {
 			checkError(fmt.Errorf("value of flag -m (--min-len) should be >= value of flag -M (--max-len)"))
 		}
@@ -133,7 +136,7 @@ var kmerCmd = &cobra.Command{
 		var cv           uint64 = 0
 		var cw           uint64 = 0
 		var ci           uint64 = 0
-		var curr         uint64 = 0
+		var curr          int   = 0
 		var seqLen       uint64 = 0
 
 		var fileNames    []string = []string{}
@@ -146,41 +149,7 @@ var kmerCmd = &cobra.Command{
 		var statsSeqP   *Stat
 		var res         = NewKmerHolder(kmerSize)
 		
-        var cleaner uint64  = (1 << (uint64(kmerSize)*2)) - 1
-
-        vals               := [256][3]uint64{}
-		CHARS              := [4]byte{'A', 'C', 'G', 'T'}
-		chars              := [4]byte{'a', 'c', 'g', 't'}
-        //res                := make([]uint8, cleaner)
-		
-		for _, a := range vals {
-			for j, _ := range a {
-				a[j] = 0
-			}
-		}
-
-		for i, b := range CHARS {
-			//print( "CHARS i: ", i, " b: ", b, "\n" );
-			vals[uint8(b)][0] =    uint64(i)
-			vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
-			vals[uint8(b)][2] = 1
-		}
-
-		for i, b := range chars {
-			//print( "chars i: ", i, " b: ", b, "\n" );
-			vals[uint8(b)][0] =    uint64(i)
-			vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
-			vals[uint8(b)][2] = 1
-		}
-
-		//print( "cleaner ", cleaner, "\n")
-		//print( "res     ",     res, "\n")
-
-		//for j, b := range vals {
-		//	//fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, b, b );
-		//	v, w, i := b[0], b[1], b[2]
-		//	fmt.Printf( "vals i: %3d v: %3d (%010b) w: %3d (%010b) i: %d\n", j, v, v, w, w, i );
-		//}
+		converter := NewConverter(kmerSize)
 		
 		//checkError(fmt.Errorf("done"))
 		
@@ -276,7 +245,7 @@ var kmerCmd = &cobra.Command{
 						}
 					}
 					
-					cv, cw, ci  = vals[ b ][0], vals[ b ][1], vals[ b ][2]
+					cv, cw, ci  = converter.Vals[ b ][0], converter.Vals[ b ][1], converter.Vals[ b ][2]
 					
 					//if count > 119200 {
 					//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
@@ -307,7 +276,7 @@ var kmerCmd = &cobra.Command{
 						}
 
 						val       <<= 2
-						val        &= cleaner
+						val        &= converter.Cleaner
 						val        += cv
 				
 						lav       >>= 2
@@ -318,7 +287,7 @@ var kmerCmd = &cobra.Command{
 						//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
 						//}
 						
-						if curr == kmerSize - 1 {
+						if curr == converter.KmerSize - 1 {
 							vav = val
 							
 							if lav < val {
@@ -356,10 +325,11 @@ var kmerCmd = &cobra.Command{
 		res.Close()
 		//log.Infof("Printing")
 		//res.Print()
+		print( "num kmers", res.KmerLen )
 		
 		for i:=0; i < res.KmerLen; i++ {
 			kmer  := res.GetByIndex(i)
-			//print( "RES i: ", i, " c: ", c, "\n" );
+			fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
 			kcoun += 1
 			ksums += uint64(kmer.Count)
 		}
