@@ -3,6 +3,7 @@ package cmd
 import (
 	"runtime"
 	"sort"
+	//"fmt"
 	"golang.org/x/text/message"
 	"github.com/shenwei356/go-logging"
 )
@@ -107,17 +108,30 @@ func addToInt8( a *uint8, b uint8 ) {
 type Converter struct {
 	KmerSize  int
 	Cleaner  uint64
-    CHARS   [4]byte
-    chars   [4]byte
-	Vals [256][3]uint64
+    cHARS   [  4]byte
+    chars   [  4]byte
+	Vals    [256][3]uint64
+	table   []uint64
 }
 
 func (conv Converter) NumToSeq(kmer uint64) string {
 	seq := make([]byte, conv.KmerSize, conv.KmerSize)
+	p   := uint64(0)
+	q   := uint64(0)
+	c   := byte(0)
 	
-	for i:=0; i<conv.KmerSize; i++ {
-		//seq[i] = 
+	for i:=conv.KmerSize-1; i>=0; i-- {
+		p = kmer & conv.table[i]
+		q = p >> (uint(i)*2)
+		c = conv.cHARS[q]
+		
+		//fmt.Printf( "i %3d - kmer %010b - a %010b - p %010b - q %010b - c %s\n"  , i, kmer, conv.table[i], p, q, string(c) )
+		//fmt.Printf( "        kmer % 10d - a % 10d - p % 10d - q % 10d - c %s\n\n",    kmer, conv.table[i], p, q, string(c) )
+		
+		seq[uint(conv.KmerSize)-uint(i)-1] = c
 	}
+	
+	//println("SEQ", string(seq))
 	
 	return string(seq)
 }
@@ -128,9 +142,9 @@ func NewConverter(kmerSize int) *Converter {
 	conv.KmerSize  = kmerSize
 	conv.Cleaner   = (1 << (uint64(kmerSize)*2)) - 1
 	conv.Vals      = [256][3]uint64{}
-    conv.CHARS     = [4]byte{'A', 'C', 'G', 'T'}
-    conv.chars     = [4]byte{'a', 'c', 'g', 't'}	
-
+    conv.cHARS     = [ 4]byte{'A', 'C', 'G', 'T'}
+    conv.chars     = [ 4]byte{'a', 'c', 'g', 't'}
+	conv.table     = make([]uint64, kmerSize)
 	
 	for i, _ := range conv.Vals {
 		for j, _ := range conv.Vals[i] {
@@ -138,7 +152,7 @@ func NewConverter(kmerSize int) *Converter {
 		}
 	}
 
-	for i, b := range conv.CHARS {
+	for i, b := range conv.cHARS {
 		//print( "CHARS i: ", i, " b: ", b, "\n" );
 		conv.Vals[uint8(b)][0] =    uint64(i)
 		conv.Vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
@@ -152,6 +166,17 @@ func NewConverter(kmerSize int) *Converter {
 		conv.Vals[uint8(b)][2] = 1
 	}
 
+	for i:=conv.KmerSize-1; i>=0; i-- {
+		conv.table[i] = (^uint64(0)) & (3 << (uint(i)*2))
+	}
+	
+	//for i:=uint64(0); i < 1024; i++ {
+	//	seq := conv.NumToSeq(i)
+	//	println("I", i, "seq", seq)
+	//}
+	
+	//log.Panic("done")
+	
 	//print( "cleaner ", cleaner, "\n")
 	//print( "res     ",     res, "\n")
 
@@ -335,7 +360,7 @@ func (this *KmerHolder) SortAct() {
 	//https://stackoverflow.com/questions/28999735/what-is-the-shortest-way-to-simply-sort-an-array-of-structs-by-arbitrary-field
 	
 	if this.KmerLen == this.LastKmerLen {
-		println("no growth")
+		//println("no growth")
 		return
 	} else {
 		println("sort", this.KmerLen, this.LastKmerLen, len(this.Kmer), cap(this.Kmer))
