@@ -403,7 +403,10 @@ var kmerCmd = &cobra.Command{
 
 		//res.ToFile(outFile)
 		res.ToFileHandle(outfh)
-		//outfh.Close()
+		outfh.Close()
+
+		log.Info("reading from: ", outFile, "\n")
+		res.FromFile(outFile)
 		
 		log.Info("finished saving\n")
 	},

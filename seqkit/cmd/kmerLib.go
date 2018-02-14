@@ -3,14 +3,16 @@ package cmd
 import (
 	"runtime"
 	"sort"
-	//"fmt"
+	"encoding/binary"
+	"io"
+	"fmt"
 	"golang.org/x/text/message"
 	"github.com/shenwei356/go-logging"
 	"github.com/shenwei356/xopen"
 )
 
 const min_capacity = 1000000
-
+const max_counter = 254
 //https://stackoverflow.com/questions/6878590/the-maximum-value-for-an-int-type-in-go
 const MaxUint = ^uint64(0) 
 const MinUint = 0 
@@ -91,16 +93,127 @@ func sumInt8( a, b uint8 ) uint8 {
 }
 
 func addToInt8( a *uint8, b uint8 ) {
-	if *a < 254 {
-		if (254 - *a) >= b {
-			*a = 254
+	if *a < max_counter {
+		if (max_counter - *a) >= b {
+			*a = max_counter
 		} else {
 			*a += b
 		}
 	} else {
-		*a = 254
+		*a = max_counter
 	}
 }
+
+
+
+
+
+
+
+
+
+type KmerIO struct {
+	OutFh *xopen.Writer
+	InFh *xopen.Reader
+	mode int
+	buf []byte
+}
+
+func (this *KmerIO) initWriter(outFh *xopen.Writer) {
+	if this.mode != 0 {
+		log.Panic("writing on open file")
+	}
+	this.buf        = make([]byte, binary.MaxVarintLen64)
+	this.OutFh      = outFh
+	this.mode       = 1
+}
+
+func (this *KmerIO) initReader(inFh *xopen.Reader) {
+	if this.mode != 0 {
+		log.Panic("reading on open file")
+	}
+	this.buf        = make([]byte, binary.MaxVarintLen64)
+	this.InFh       = inFh
+	this.mode       = 2
+}
+
+func (this *KmerIO) CheckMode(mode int) {
+	if mode == 1 {
+		if this.mode == 0 {
+			log.Panic("writing on closed file")
+		}
+		if this.mode == 2 {
+			log.Panic("writing on reading file")
+		}
+	} else if mode == 2 {
+		if this.mode == 0 {
+			log.Panic("reading on closed file")
+		}
+		if this.mode == 1 {
+			log.Panic("reading on reading file")
+		}		
+	}
+}
+
+func (this *KmerIO) ReadUint8(res *uint8) (bool) {
+	this.CheckMode(2)
+	
+	err := binary.Read(this.InFh, binary.LittleEndian, res);
+
+	if err != nil {
+		if err == io.EOF {
+			return false
+		} else {
+			log.Panic("binary.Read failed:", err)
+		}
+	}
+	
+	return true
+}
+
+func (this *KmerIO) ReadUint64() (uint64, bool) {
+	this.CheckMode(2)
+
+	i, err := binary.ReadUvarint(this.InFh);
+
+	if err != nil {
+		if err == io.EOF {
+			return 0, false
+		} else {
+			log.Panic("binary.Read failed:", err)
+		}
+	}
+	
+	return i, true
+}
+
+func (this *KmerIO) WriteUint8(x uint8) {
+	this.CheckMode(1)
+
+	//fmt.Printf("%d %d %x\n", x, n, this.buf[:n])
+
+	err := binary.Write(this.OutFh, binary.LittleEndian, x)
+
+	if err != nil {
+		log.Panic("binary.Write failed:", err)
+	}
+}
+
+func (this *KmerIO) WriteUint64(x uint64) {
+	this.CheckMode(1)
+	
+	n := binary.PutUvarint(this.buf, x)
+	
+	//fmt.Printf("%d %d %x\n", x, n, this.buf[:n])
+	
+	err := binary.Write(this.OutFh, binary.LittleEndian, this.buf[:n])
+	if err != nil {
+		log.Panic("binary.Write failed:", err)
+	}
+}
+
+
+
 
 
 
@@ -315,6 +428,8 @@ func (this *KmerArr) isEqual(that *KmerArr) (bool, string) {
 	log.Debugf("KmerArr    :: isEqual :: OK")
 	return true, "OK"
 }
+
+
 
 
 
@@ -669,8 +784,65 @@ func (this *KmerHolder) ToFile(outFile string) bool {
 }
 
 func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer) bool {
+	println("saving to stream")
+	
+	kio := KmerIO{}
+	kio.initWriter(outFh)
+	
+	var kmer     uint64 = 0
+	var count    uint8  = 0
+	var lastKmer uint64 = 0
+	var kmerdiff uint64 = 0
+	
+	for k, _ := range this.Kmer {
+		kmer, count = this.Kmer[k].Kmer, this.Kmer[k].Count
+		kmerdiff    = kmer - lastKmer
+		fmt.Printf("k %d kmer %d count %d kmerdiff %d\n", k, kmer, count, kmerdiff)
+		kio.WriteUint64(kmerdiff)
+		kio.WriteUint8(count)
+		lastKmer = kmer
+	}
+	
 	return false
 }
+
+func (this *KmerHolder) FromFile(inFile string) bool {
+	inFh, err := xopen.Ropen(inFile)
+	checkError(err)
+	defer inFh.Close()
+	return this.FromFileHandle(inFh)
+}
+
+func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
+	println("reading from stream")
+
+	kio := KmerIO{}
+	kio.initReader(inFh)
+
+	var kmer     uint64 = 0
+	var count    uint8  = 0
+	var lastKmer uint64 = 0
+	var kmerdiff uint64 = 0
+	var succes   bool
+	
+	k := 0
+	for {
+		kmerdiff, succes = kio.ReadUint64()
+		if !succes { break }
+		succes = kio.ReadUint8(&count)
+		if !succes { break }
+		kmer          = lastKmer + kmerdiff
+		
+		fmt.Printf("k %d kmer %d count %d kmerdiff %d\n", k, kmer, count, kmerdiff)
+		
+		k++
+		lastKmer = kmer
+	}
+	
+	
+	return false
+}
+
 
 
 func NewKmerHolder(kmerSize int) *KmerHolder {
