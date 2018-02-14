@@ -328,7 +328,7 @@ var kmerCmd = &cobra.Command{
 		println( "num kmers", res.KmerLen )
 		
 		for i:=0; i < res.KmerLen; i++ {
-			//kmer  := res.GetByIndex(i)
+			kmer  := res.GetByIndex(i)
 			//fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
 			kcoun += 1
 			ksums += uint64(kmer.Count)
@@ -401,6 +401,8 @@ var kmerCmd = &cobra.Command{
 		checkError(err)
 		defer outfh.Close()
 
+		//res.ToFile(outFile)
+		res.ToFileHandle(outfh)
 		//outfh.Close()
 		
 		log.Info("finished saving\n")

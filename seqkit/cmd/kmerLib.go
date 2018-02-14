@@ -6,6 +6,7 @@ import (
 	//"fmt"
 	"golang.org/x/text/message"
 	"github.com/shenwei356/go-logging"
+	"github.com/shenwei356/xopen"
 )
 
 const min_capacity = 1000000
@@ -660,7 +661,16 @@ func (this *KmerHolder) AddSorted(length int, pos int, kmer uint64, count uint8)
 	this.Kmer.AddSorted(length, pos, kmer, count)
 }
 
+func (this *KmerHolder) ToFile(outFile string) bool {
+	outFh, err := xopen.Wopen(outFile)
+	checkError(err)
+	defer outFh.Close()
+	return this.ToFileHandle(outFh)
+}
 
+func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer) bool {
+	return false
+}
 
 
 func NewKmerHolder(kmerSize int) *KmerHolder {
