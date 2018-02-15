@@ -80,7 +80,6 @@ var kmerCmd = &cobra.Command{
 		minLen := getFlagInt(cmd, "min-len")
 		maxLen := getFlagInt(cmd, "max-len")
 		kmerSize := int(getFlagPositiveInt(cmd, "kmer-size"))
-		dbSize := getFlagPositiveInt(cmd, "db-size")
 		
 		if minLen >= 0 && maxLen >= 0 && minLen > maxLen {
 			checkError(fmt.Errorf("value of flag -m (--min-len) should be >= value of flag -M (--max-len)"))
@@ -88,10 +87,6 @@ var kmerCmd = &cobra.Command{
 
 		if kmerSize > 31 {
 			checkError(fmt.Errorf("value of flag -k (--kmer-size) should be between 1 and 31"))
-		}
-
-		if dbSize > 8 {
-			checkError(fmt.Errorf("value of flag -d (--db-size) should be between 1 and 8"))
 		}
 		
 		seq.ValidateSeq = validateSeq
@@ -120,16 +115,12 @@ var kmerCmd = &cobra.Command{
 
 		files              := getFileList(args)
 
-		maxCount           := uint64((1 << uint(dbSize * 8))-1)
-
 		p := message.NewPrinter(message.MatchLanguage("en"))
 		
 		if profile {
 			log.Info( "profile" )
 		}		
 		
-		log.Info( "max count: ", maxCount )
-
 		var val          uint64 = 0
 		var lav          uint64 = 0
 		var vav          uint64 = 0
@@ -423,6 +414,5 @@ func init() {
 	kmerCmd.Flags().IntP("min-len", "m", -1, "only print sequences longer than the minimum length (-1 for no limit)")
 	kmerCmd.Flags().IntP("max-len", "M", -1, "only print sequences shorter than the maximum length (-1 for no limit)")
 	kmerCmd.Flags().IntP("kmer-size", "k", 5, "kmer size (1-31, default: 21)")
-	kmerCmd.Flags().IntP("db-size", "d", 1, "database size (1-8, default: 1)")
 
 }
