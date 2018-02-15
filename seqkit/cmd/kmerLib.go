@@ -438,16 +438,26 @@ func (this *KmerArr) Add(kmer uint64, LastKmerLen int) {
 	//log.Debugf("KmerArr    :: Add %d %p", kmer, (*this))
 }
 
-func (this *KmerArr) AddSorted(length int, pos int, kmer uint64, count uint8) {
-	//log.Debugf("KmerArr    :: Add %3d %p", kmer, (*this))
+func (this *KmerArr) AddSorted(kmer uint64, count uint8) {
+	log.Debugf("KmerArr    :: AddSorted %12d %3d %p", kmer, count, (*this))
 
-	if (len(*this)) != length {
-		(*this) = make(KmerArr, length, length)
+	if (cap(*this)) < min_capacity {
+		log.Debugf("KmerArr    :: AddSorted :: creating. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), min_capacity, (*this))
+		(*this) = make(KmerArr, 0, min_capacity)
+	} else {
+		if len(*this) >= ( 9 * (cap(*this) / 10)) {
+			newCap := (cap(*this) / 4 * 6)
+			log.Debugf("KmerArr    :: AddSorted :: expanding. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), newCap, (*this))
+			t := make(KmerArr, len(*this), newCap)
+			copy(t, *this)
+			(*this) = t
+			log.Debugf("KmerArr    :: AddSorted :: expanding. len %12d cap %12d         %12s - %p", len(*this), cap(*this), "", (*this))
+		}
 	}
 	
-	(*this)[pos] = KmerUnit{kmer, count}
+	*this = append(*this, KmerUnit{kmer, count})
 	
-	//log.Debugf("KmerArr    :: Add %d %p", kmer, (*this))
+	log.Debugf("KmerArr    :: AddSorted %12d %3d %p - added", kmer, count, (*this))
 }
 
 func (this *KmerArr) Clear() {
@@ -507,7 +517,6 @@ func (this *KmerHolder) Print() {
 	log.Debugf(p.Sprintf( "Kmer         %12d CAP %12d\n", len(this.Kmer), cap(this.Kmer) ))
 	this.Kmer.Print()
 }
-
 
 func (this *KmerHolder) Sort() {
 	if len(this.Kmer) == 0 {
@@ -780,7 +789,7 @@ func (this *KmerHolder) SortAct() {
 	
 	this.KmerLen     = len(this.Kmer)
 	this.LastKmerLen = len(this.Kmer)
-
+	println("Sorted")
 	//log.Debugf("KmerArr    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastKmerLen %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastKmerLen)
 	//this.Kmer.PrintLevel(lvlI)
 }
@@ -822,8 +831,15 @@ func (this *KmerHolder) GetByIndex(i int) KmerUnit {
 	return this.Kmer.GetByIndex(i)
 }
 
-func (this *KmerHolder) AddSorted(length int, pos int, kmer uint64, count uint8) {
-	this.Kmer.AddSorted(length, pos, kmer, count)
+func (this *KmerHolder) AddSorted(kmer uint64, count uint8) {
+	this.Kmer.AddSorted(kmer, count)
+	this.KmerLen = len(this.Kmer)
+}
+
+func (this *KmerHolder) Clear() {
+	this.Kmer.Clear()
+	this.KmerLen = len(this.Kmer)
+	this.LastKmerLen = len(this.Kmer)
 }
 
 func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
@@ -920,19 +936,32 @@ func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer, minCount uint8) bool {
 		numK++
 
 		if count < minCount {
-			//kio.WriteUint64V(0)
-			kio.WriteUint64(0)
+			//kio.WriteUint64(0)
+			kio.WriteUint64V(0)
 			kio.WriteUint8(0)
 			continue
 		}
 
 		kmerdiff    = kmer - lastKmer
 		
+		if kmer != 0 && lastKmer != 0 {
+			if kmer == lastKmer {
+				log.Panicf("duplicated kmer. %d vs %d", kmer, lastKmer)
+			}
+			if kmerdiff == 0 {
+				log.Panicf("zero difference kmer %12d count %3d lastKmer %12d kmerdiff %12d", kmer, count, lastKmer, kmerdiff)
+			}
+		}
+
+		if count == 0 {
+			log.Panicf("zero count kmer %12d count %3d lastKmer %12d kmerdiff %12d", kmer, count, lastKmer, kmerdiff)
+		}
+		
 		csk.Add(kmer, count, kmerdiff)
 				
 		//fmt.Printf("W k %d kmer %d count %d kmerdiff %d\n", k, kmer, count, kmerdiff)
-		kio.WriteUint64(kmerdiff)
-		//kio.WriteUint64V(kmerdiff)
+		//kio.WriteUint64(kmerdiff)
+		kio.WriteUint64V(kmerdiff)
 		kio.WriteUint8(count)
 		lastKmer = kmer
 	}
@@ -949,7 +978,7 @@ func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer, minCount uint8) bool {
 
 	kio.Flush()
 	
-	return false
+	return true
 }
 
 func (this *KmerHolder) FromFile(inFile string) bool {
@@ -962,6 +991,10 @@ func (this *KmerHolder) FromFile(inFile string) bool {
 func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 	println("reading from stream")
 
+	println("cleaning database")
+	this.Clear()
+	println("database clean")
+	
 	kio := KmerIO{}
 	kio.initReader(inFh)
 	csk := NewChecksumK()
@@ -986,8 +1019,8 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 	fmt.Printf("reading %12d minimum count\n", minCount)
 	
 	for {
-		succes = kio.ReadUint64(&kmerdiff)
-		//kmerdiff, succes = kio.ReadUint64V()
+		//succes = kio.ReadUint64(&kmerdiff)
+		kmerdiff, succes = kio.ReadUint64V()
 		if !succes { break }
 		
 		succes = kio.ReadUint8(&count)
@@ -995,17 +1028,29 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 		
 		numK++
 		
-		if kmerdiff == 0 && count == 0 {
-			if numK == regs {
-				break
+		if kmerdiff == 0 {
+			if count == 0 {
+				if numK == regs {
+					break
+				} else {
+					continue
+				}
 			} else {
-				continue
+				if lastKmer != 0 {
+					log.Panicf("zero count kmer %12d count %3d lastKmer %12d kmerdiff %12d", kmer, count, lastKmer, kmerdiff)
+				}
 			}
+		}
+		
+		if count == 0 {
+			log.Panicf("zero count kmer %12d count %3d lastKmer %12d kmerdiff %12d", kmer, count, lastKmer, kmerdiff)
 		}
 
 		kmer          = lastKmer + kmerdiff
 
 		csk.Add(kmer, count, kmerdiff)
+
+		this.AddSorted(kmer, count)
 		
 		//fmt.Printf("R k %d kmer %d count %d kmerdiff %d\n", numK, kmer, count, kmerdiff)
 		
@@ -1026,8 +1071,12 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 	kio.ReadStruct(cskC)
 
 	csk.IsEqual(cskC)
+
+	println("sorting database")
+	this.SortAct()
+	println("database sorted")
 		
-	return false
+	return true
 }
 
 
