@@ -64,6 +64,10 @@ sys                78m28.188s |  52m41.609s    55m52.094s
 [INFO] Skipped              0 |           0             0
 [INFO] Resets      86,307,693 |  86,307,693    86,307,693
 
+
+                variable   fixed
+/tmp/t.kmer.gz     99158  138724 71%
+
 """
 import sys
 import gzip
