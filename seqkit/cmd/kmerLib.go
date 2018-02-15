@@ -12,7 +12,7 @@ import (
 )
 
 const min_capacity = 1000000
-const max_counter = 254
+const max_counter = uint8(254)
 //https://stackoverflow.com/questions/6878590/the-maximum-value-for-an-int-type-in-go
 const MaxUint = ^uint64(0) 
 const MinUint = 0 
@@ -94,12 +94,16 @@ func sumInt8( a, b uint8 ) uint8 {
 
 func addToInt8( a *uint8, b uint8 ) {
 	if *a < max_counter {
-		if (max_counter - *a) >= b {
+		//print("<", *a, " ", max_counter)
+		if (max_counter - *a) <= b {
+			//println("-")
 			*a = max_counter
 		} else {
+			//println("+")
 			*a += b
 		}
 	} else {
+		//println("=", *a, " ", max_counter)
 		*a = max_counter
 	}
 }
@@ -491,7 +495,7 @@ func (this *KmerHolder) Print() {
 
 func (this *KmerHolder) Sort() {
 	if len(this.Kmer) == 0 {
-		println("empty")
+		//println("empty")
 		return
 	}
 	
@@ -806,14 +810,14 @@ func (this *KmerHolder) AddSorted(length int, pos int, kmer uint64, count uint8)
 	this.Kmer.AddSorted(length, pos, kmer, count)
 }
 
-func (this *KmerHolder) ToFile(outFile string) bool {
+func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
 	outFh, err := xopen.Wopen(outFile)
 	checkError(err)
 	defer outFh.Close()
-	return this.ToFileHandle(outFh)
+	return this.ToFileHandle(outFh, minCount)
 }
 
-func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer) bool {
+func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer, minCount uint8) bool {
 	println("saving to stream")
 	
 	kio := KmerIO{}
@@ -825,46 +829,66 @@ func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer) bool {
 	var kmerdiff uint64 = 0
 	
 	var numK     uint64 = 0
+	var numV     uint64 = 0
 	var minK     uint64 = MaxUint
 	var maxK     uint64 = 0
+	var minC     uint8  = 254
+	var maxC     uint8  = 0
 	var minD     uint64 = MaxUint
 	var maxD     uint64 = 0
-	var sumD     uint64 = 0
 	var sumC     uint64 = 0
+	var sumD     uint64 = 0
 
 	var regs     uint64 = uint64(len(this.Kmer))
 	fmt.Printf("writing %12d registers\n", regs)
+	fmt.Printf("writing %12d minimun count\n", minCount)
 
 	kio.WriteUint64(regs)
+	kio.WriteUint8(minCount)
 	
 	for k, _ := range this.Kmer {
 		kmer, count = this.Kmer[k].Kmer, this.Kmer[k].Count
-		kmerdiff    = kmer - lastKmer
 
 		numK++
+
+		if count < minCount {
+			//kio.WriteUint64V(0)
+			kio.WriteUint64(0)
+			kio.WriteUint8(0)
+			continue
+		}
+
+		numV++
+		kmerdiff    = kmer - lastKmer
 		if kmer     < minK { minK = kmer     }
 		if kmer     > maxK { maxK = kmer     }
+		if count    < minC { minC = count    }
+		if count    > maxC { maxC = count    }
 		if kmerdiff < minD { minD = kmerdiff }
 		if kmerdiff > maxD { maxD = kmerdiff }
-		sumD += kmerdiff
+		
 		sumC += uint64(count)
+		sumD += kmerdiff
 		
 		//fmt.Printf("W k %d kmer %d count %d kmerdiff %d\n", k, kmer, count, kmerdiff)
-		kio.WriteUint64V(kmerdiff)
-		//kio.WriteUint64(kmerdiff)
+		kio.WriteUint64(kmerdiff)
+		//kio.WriteUint64V(kmerdiff)
 		kio.WriteUint8(count)
 		lastKmer = kmer
 	}
 
-	fmt.Printf("WRITE registers: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d\n",
-			   numK, minK, maxK, sumD, minD, maxD, sumC )
+	fmt.Printf("WRITE registers: %12d valid: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d min: %12d max: %12d\n",
+			   numK, numV, minK, maxK, sumD, minD, maxD, sumC, minC, maxC )
 
+	kio.WriteUint64(numV)
 	kio.WriteUint64(minK)
 	kio.WriteUint64(maxK)
+	kio.WriteUint8 (minC)
+	kio.WriteUint8 (maxC)
 	kio.WriteUint64(minD)
 	kio.WriteUint64(maxD)
-	kio.WriteUint64(sumD)
 	kio.WriteUint64(sumC)
+	kio.WriteUint64(sumD)
 
 	if numK != regs {
 		log.Panicf("number of writen registers not the same as expected. %d vs %d", numK, regs)
@@ -894,38 +918,59 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 	var kmerdiff uint64 = 0
 	var succes   bool
 
+	var regs     uint64 = 0
+	var minCount uint8  = 0
+
 	var numK     uint64 = 0
+	var numV     uint64 = 0
 	var minK     uint64 = MaxUint
 	var maxK     uint64 = 0
+	var minC     uint8  = 254
+	var maxC     uint8  = 0
 	var minD     uint64 = MaxUint
 	var maxD     uint64 = 0
-	var sumD     uint64 = 0
 	var sumC     uint64 = 0
+	var sumD     uint64 = 0
 
-	var regs     uint64 = 0
 	succes = kio.ReadUint64(&regs)
-
+	if !succes { log.Panic("error reading begining of the file") }
+	succes = kio.ReadUint8(&minCount)
 	if !succes { log.Panic("error reading begining of the file") }
 	
 	fmt.Printf("reading %12d registers\n", regs)
+	fmt.Printf("reading %12d minimum count\n", minCount)
 	
 	for {
-		kmerdiff, succes = kio.ReadUint64V()
-		//succes = kio.ReadUint64(&kmerdiff)
+		succes = kio.ReadUint64(&kmerdiff)
+		//kmerdiff, succes = kio.ReadUint64V()
 		if !succes { break }
 		
 		succes = kio.ReadUint8(&count)
 		if !succes { break }
 		
+		numK++
+		
+		if kmerdiff == 0 && count == 0 {
+			if numK == regs {
+				break
+			} else {
+				continue
+			}
+		}
+
+		numV++
+
 		kmer          = lastKmer + kmerdiff
 
-		numK++
 		if kmer     < minK { minK = kmer     }
 		if kmer     > maxK { maxK = kmer     }
+		if count    < minC { minC = count    }
+		if count    > maxC { maxC = count    }
 		if kmerdiff < minD { minD = kmerdiff }
 		if kmerdiff > maxD { maxD = kmerdiff }
-		sumD += kmerdiff
+		
 		sumC += uint64(count)
+		sumD += kmerdiff
 		
 		//fmt.Printf("R k %d kmer %d count %d kmerdiff %d\n", numK, kmer, count, kmerdiff)
 		
@@ -936,18 +981,26 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 		}
 	}
 
-	fmt.Printf("READ  registers: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d\n",
-			   numK, minK, maxK, sumD, minD, maxD, sumC )
+	fmt.Printf("READ  registers: %12d valid: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d min: %12d max: %12d\n",
+		   numK, numV, minK, maxK, sumD, minD, maxD, sumC, minC, maxC )
 	
 	if numK != regs { log.Panicf("number of read registers not the same as expected. %d vs %d", numK, regs) }
-
+	
+	var numVc    uint64 = 0
 	var minKc    uint64 = MaxUint
 	var maxKc    uint64 = 0
+	var minCc    uint8  = 254
+	var maxCc    uint8  = 0
 	var minDc    uint64 = MaxUint
 	var maxDc    uint64 = 0
-	var sumDc    uint64 = 0
 	var sumCc    uint64 = 0
+	var sumDc    uint64 = 0
 
+	
+	succes = kio.ReadUint64(&numVc)
+	if !succes { log.Panic("error reading end of the file") }
+	if numV != numVc { log.Panicf("number of valid kmer not the same as expected. %d vs %d", numV, numVc) }
+	
 	succes = kio.ReadUint64(&minKc)
 	if !succes { log.Panic("error reading end of the file") }
 	if minK != minKc { log.Panicf("minimal kmer not the same as expected. %d vs %d", minK, minKc) }
@@ -955,6 +1008,14 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 	succes = kio.ReadUint64(&maxKc)
 	if !succes { log.Panic("error reading end of the file") }
 	if maxK != maxKc { log.Panicf("maximum kmer not the same as expected. %d vs %d", maxK, maxKc) }
+	
+	succes = kio.ReadUint8(&minCc)
+	if !succes { log.Panic("error reading end of the file") }
+	if minC != minCc { log.Panicf("minimal kmer not the same as expected. %d vs %d", minC, minCc) }
+	
+	succes = kio.ReadUint8(&maxCc)
+	if !succes { log.Panic("error reading end of the file") }
+	if maxC != maxCc { log.Panicf("maximum kmer not the same as expected. %d vs %d", maxC, maxCc) }
 
 	succes = kio.ReadUint64(&minDc)
 	if !succes { log.Panic("error reading end of the file") }
@@ -964,14 +1025,13 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 	if !succes { log.Panic("error reading end of the file") }
 	if maxD != maxDc { log.Panicf("maximum kmer diff not the same as expected. %d vs %d", maxD, maxDc) }
 
-	succes = kio.ReadUint64(&sumDc)
-	if !succes { log.Panic("error reading end of the file") }
-	if sumD != sumDc { log.Panicf("sum of diff not the same as expected. %d vs %d", sumD, sumDc) }
-
 	succes = kio.ReadUint64(&sumCc)
 	if !succes { log.Panic("error reading end of the file") }
 	if sumC != sumCc { log.Panicf("sum of counts not the same as expected. %d vs %d", sumC, sumCc) }
 
+	succes = kio.ReadUint64(&sumDc)
+	if !succes { log.Panic("error reading end of the file") }
+	if sumD != sumDc { log.Panicf("sum of diff not the same as expected. %d vs %d", sumD, sumDc) }
 		
 	return false
 }

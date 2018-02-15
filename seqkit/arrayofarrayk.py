@@ -66,7 +66,7 @@ sys                78m28.188s |  52m41.609s    55m52.094s
 
 
                 variable   fixed
-/tmp/t.kmer.gz     99158  138724 71%
+/tmp/t.kmer.gz    100412  138724 72%
 
 """
 import sys

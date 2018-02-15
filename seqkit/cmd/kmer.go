@@ -80,6 +80,7 @@ var kmerCmd = &cobra.Command{
 		minLen := getFlagInt(cmd, "min-len")
 		maxLen := getFlagInt(cmd, "max-len")
 		kmerSize := int(getFlagPositiveInt(cmd, "kmer-size"))
+		minCount := uint8(getFlagPositiveInt(cmd, "min-count"))
 		
 		if minLen >= 0 && maxLen >= 0 && minLen > maxLen {
 			checkError(fmt.Errorf("value of flag -m (--min-len) should be >= value of flag -M (--max-len)"))
@@ -87,6 +88,10 @@ var kmerCmd = &cobra.Command{
 
 		if kmerSize > 31 {
 			checkError(fmt.Errorf("value of flag -k (--kmer-size) should be between 1 and 31"))
+		}
+
+		if minCount > 254 {
+			checkError(fmt.Errorf("value of flag -c (--min-count) should be between 1 and 254"))
 		}
 		
 		seq.ValidateSeq = validateSeq
@@ -393,7 +398,7 @@ var kmerCmd = &cobra.Command{
 		defer outfh.Close()
 
 		//res.ToFile(outFile)
-		res.ToFileHandle(outfh)
+		res.ToFileHandle(outfh, minCount)
 		outfh.Close()
 
 		log.Info("reading from: ", outFile, "\n")
@@ -413,6 +418,6 @@ func init() {
 	kmerCmd.Flags().IntP("validate-seq-length", "V", 10000, "length of sequence to validate (0 for whole seq)")
 	kmerCmd.Flags().IntP("min-len", "m", -1, "only print sequences longer than the minimum length (-1 for no limit)")
 	kmerCmd.Flags().IntP("max-len", "M", -1, "only print sequences shorter than the maximum length (-1 for no limit)")
-	kmerCmd.Flags().IntP("kmer-size", "k", 5, "kmer size (1-31, default: 21)")
-
+	kmerCmd.Flags().IntP("kmer-size", "k", 5, "kmer size (1-31)")
+	kmerCmd.Flags().IntP("min-count", "c", 1, "min kmer count to report (1-254)")
 }
