@@ -3,12 +3,9 @@ package cmd
 import (
 	"runtime"
 	"sort"
-	"encoding/binary"
-	"io"
 	"fmt"
 	"golang.org/x/text/message"
 	"github.com/shenwei356/go-logging"
-	"github.com/shenwei356/xopen"
 )
 
 const min_capacity = 1000000
@@ -62,35 +59,35 @@ func moveDownWhileSmall(this *KmerArr, offset int) {
 	}
 }
 
-func mergeSortedSliceValues(this *KmerArr) int {
-	var dstKmer  *KmerUnit
-	var srcKmer  *KmerUnit
+//func mergeSortedSliceValues(this *KmerArr) int {
+//	var dstKmer  *KmerUnit
+//	var srcKmer  *KmerUnit
+//
+//	lasti   := 0
+//	srcKmer  = &(*this)[lasti]
+//	for i,_ := range (*this) {
+//		if i != lasti {
+//			dstKmer  = &(*this)[i]
+//
+//			if dstKmer.Kmer == (*this)[lasti].Kmer {
+//				//srcKmer.Count = sumInt8( srcKmer.Count, dstKmer.Count )
+//				addToInt8(&srcKmer.Count, dstKmer.Count)
+//			} else {
+//				lasti++
+//				(*this)[lasti], (*this)[i] = (*this)[i], (*this)[lasti]
+//				srcKmer = &(*this)[lasti]
+//				//*srcKmer, *dstKmer = *dstKmer, *srcKmer
+//			}
+//		}
+//	}
+//	return lasti
+//}
 
-	lasti   := 0
-	srcKmer  = &(*this)[lasti]
-	for i,_ := range (*this) {
-		if i != lasti {
-			dstKmer  = &(*this)[i]
-
-			if dstKmer.Kmer == (*this)[lasti].Kmer {
-				//srcKmer.Count = sumInt8( srcKmer.Count, dstKmer.Count )
-				addToInt8(&srcKmer.Count, dstKmer.Count)
-			} else {
-				lasti++
-				(*this)[lasti], (*this)[i] = (*this)[i], (*this)[lasti]
-				srcKmer = &(*this)[lasti]
-				//*srcKmer, *dstKmer = *dstKmer, *srcKmer
-			}
-		}
-	}
-	return lasti
-}
-
-func sumInt8( a, b uint8 ) uint8 {
-	t := a
-	addToInt8( &t, b )
-	return t
-}
+//func sumInt8( a, b uint8 ) uint8 {
+//	t := a
+//	addToInt8( &t, b )
+//	return t
+//}
 
 func addToInt8( a *uint8, b uint8 ) {
 	if *a < max_counter {
@@ -116,155 +113,11 @@ func addToInt8( a *uint8, b uint8 ) {
 
 
 
-type KmerIO struct {
-	OutFh *xopen.Writer
-	InFh *xopen.Reader
-	mode int
-	buf []byte
-}
-
-func (this *KmerIO) initWriter(outFh *xopen.Writer) {
-	if this.mode != 0 {
-		log.Panic("writing on open file")
-	}
-	this.buf        = make([]byte, binary.MaxVarintLen64)
-	this.OutFh      = outFh
-	this.mode       = 1
-}
-
-func (this *KmerIO) initReader(inFh *xopen.Reader) {
-	if this.mode != 0 {
-		log.Panic("reading on open file")
-	}
-	this.buf        = make([]byte, binary.MaxVarintLen64)
-	this.InFh       = inFh
-	this.mode       = 2
-}
-
-func (this *KmerIO) CheckMode(mode int) {
-	if mode == 1 {
-		if this.mode == 0 {
-			log.Panic("writing on closed file")
-		}
-		if this.mode == 2 {
-			log.Panic("writing on reading file")
-		}
-	} else if mode == 2 {
-		if this.mode == 0 {
-			log.Panic("reading on closed file")
-		}
-		if this.mode == 1 {
-			log.Panic("reading on reading file")
-		}		
-	}
-}
-
-func (this *KmerIO) ReadUint8(res *uint8) (bool) {
-	this.CheckMode(2)
-	
-	err := binary.Read(this.InFh, binary.LittleEndian, res);
-
-	if err != nil {
-		if err == io.EOF {
-			return false
-		} else {
-			log.Panic("binary.Read failed:", err)
-		}
-	}
-	
-	return true
-}
-
-func (this *KmerIO) ReadUint64(res *uint64) (bool) {
-	this.CheckMode(2)
-	
-	err := binary.Read(this.InFh, binary.LittleEndian, res);
-
-	if err != nil {
-		if err == io.EOF {
-			return false
-		} else {
-			log.Panic("binary.Read failed:", err)
-		}
-	}
-	
-	return true
-}
-
-func (this *KmerIO) ReadUint64V() (uint64, bool) {
-	this.CheckMode(2)
-
-	i, err := binary.ReadUvarint(this.InFh);
-
-	if err != nil {
-		if err == io.EOF {
-			return 0, false
-		} else {
-			log.Panic("binary.Read failed:", err)
-		}
-	}
-	
-	return i, true
-}
-
-func (this *KmerIO) WriteUint8(x uint8) {
-	this.CheckMode(1)
-
-	//fmt.Printf("%d %d %x\n", x, n, this.buf[:n])
-
-	err := binary.Write(this.OutFh, binary.LittleEndian, x)
-
-	if err != nil {
-		log.Panic("binary.Write failed:", err)
-	}
-}
-
-func (this *KmerIO) WriteUint64(x uint64) {
-	this.CheckMode(1)
-
-	//fmt.Printf("%d %d %x\n", x, n, this.buf[:n])
-
-	err := binary.Write(this.OutFh, binary.LittleEndian, x)
-
-	if err != nil {
-		log.Panic("binary.Write failed:", err)
-	}
-}
-
-func (this *KmerIO) WriteUint64V(x uint64) {
-	this.CheckMode(1)
-	
-	n := binary.PutUvarint(this.buf, x)
-	
-	//fmt.Printf("%d %d %x\n", x, n, this.buf[:n])
-	
-	err := binary.Write(this.OutFh, binary.LittleEndian, this.buf[:n])
-	if err != nil {
-		log.Panic("binary.Write failed:", err)
-	}
-}
-
-func (this *KmerIO) WriteStruct(x interface{}) {
-	this.CheckMode(1)
-	err := binary.Write(this.OutFh, binary.LittleEndian, x)
-	if err != nil {
-		log.Panic("binary.Write failed:", err)
-	}
-}
-func (this *KmerIO) ReadStruct(x interface{}) {
-	this.CheckMode(2)
-	err := binary.Read(this.InFh, binary.LittleEndian, x)
-	if err != nil {
-		log.Panic("binary.Write failed:", err)
-	}
-}
 
 
-func (this *KmerIO) Flush() {
-	this.CheckMode(1)
 
-	this.OutFh.Flush()
-}
+
+
 
 
 
@@ -496,6 +349,111 @@ func (this *KmerArr) isEqual(that *KmerArr) (bool, string) {
 
 
 
+type Hist struct {
+	h [254] int64
+	i bool
+}
+
+func (this *Hist) Update( prev uint8, next uint8 ) {
+	if ! this.i {
+		this.Init()
+	}
+	this.h[prev]--
+	this.h[next]++
+}
+
+func (this *Hist) Add( val uint8 ) {
+	if ! this.i {
+		this.Init()
+	}
+	this.h[val]++
+}
+
+func (this *Hist) Init() {	
+	this.h = [254]int64{}
+	this.i = true
+}
+
+func (this *Hist) Clear() {	
+	if this.i {
+		this.h = [254]int64{}
+	}
+	this.Init()
+}
+
+
+
+
+
+
+
+
+
+
+type ChecksumK struct {
+	NumK     uint64
+	MinK     uint64
+	MaxK     uint64
+	MinC     uint8
+	MaxC     uint8
+	MinD     uint64
+	MaxD     uint64
+	SumC     uint64
+	SumD     uint64
+}
+
+func (this *ChecksumK) Add(kmer uint64, count uint8, kmerdiff uint64) {
+	this.NumK++
+	
+	if kmer     < this.MinK { this.MinK = kmer     }
+	if kmer     > this.MaxK { this.MaxK = kmer     }
+	if count    < this.MinC { this.MinC = count    }
+	if count    > this.MaxC { this.MaxC = count    }
+	if kmerdiff < this.MinD { this.MinD = kmerdiff }
+	if kmerdiff > this.MaxD { this.MaxD = kmerdiff }
+	
+	this.SumC += uint64(count)
+	this.SumD += kmerdiff
+}
+
+func (this *ChecksumK) Print() {
+	fmt.Printf("valid: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d min: %12d max: %12d\n",
+			   this.NumK, this.MinK, this.MaxK, this.SumD, this.MinD, this.MaxD, this.SumC, this.MinC, this.MaxC )
+}
+
+func (this *ChecksumK) IsEqual(that *ChecksumK) {
+	if this.NumK != that.NumK { log.Panicf("number of kmer not the same as expected. %d vs %d"   , this.NumK, that.NumK) }
+	if this.MinK != that.MinK { log.Panicf("minimal kmer not the same as expected. %d vs %d"     , this.MinK, that.MinK) }
+	if this.MaxK != that.MaxK { log.Panicf("maximum kmer not the same as expected. %d vs %d"     , this.MaxK, that.MaxK) }
+	if this.MinC != that.MinC { log.Panicf("minimal count not the same as expected. %d vs %d"    , this.MinC, that.MinC) }
+	if this.MaxC != that.MaxC { log.Panicf("maximum count not the same as expected. %d vs %d"    , this.MaxC, that.MaxC) }
+	if this.MinD != that.MinD { log.Panicf("minimal kmer diff not the same as expected. %d vs %d", this.MinD, that.MinD) }
+	if this.MaxD != that.MaxD { log.Panicf("maximum kmer diff not the same as expected. %d vs %d", this.MaxD, that.MaxD) }
+	if this.SumC != that.SumC { log.Panicf("sum of counts not the same as expected. %d vs %d"    , this.SumC, that.SumC) }
+	if this.SumD != that.SumD { log.Panicf("sum of diff not the same as expected. %d vs %d"      , this.SumD, that.SumD) }
+}
+			   
+func NewChecksumK() *ChecksumK {
+	csk       := ChecksumK{}
+
+	csk.NumK   = 0
+	csk.MinK   = MaxUint
+	csk.MaxK   = 0
+	csk.MinC   = 254
+	csk.MaxC   = 0
+	csk.MinD   = MaxUint
+	csk.MaxD   = 0
+	csk.SumC   = 0
+	csk.SumD   = 0
+	
+	return &csk
+}
+
+
+
+
+
+
 
 
 
@@ -503,10 +461,11 @@ func (this *KmerArr) isEqual(that *KmerArr) (bool, string) {
 
 
 type KmerHolder struct {
-	KmerSize      int
-	KmerLen       int
-	KmerCap       int
-	LastKmerLen   int
+	KmerSize     int
+	KmerLen      int
+	KmerCap      int
+	LastKmerLen  int
+	hist         Hist
 	Kmer         KmerArr
 }
 
@@ -562,10 +521,12 @@ func (this *KmerHolder) SortAct() {
 	var minK      uint64 = MaxUint
 	var maxK      uint64 = 0
 	
-	if this.LastKmerLen == 0 { // first adding
+	if this.LastKmerLen == 0 {
+		// first adding
 		log.Infof("KmerArr    :: Sort :: All")
 
-		sortSlice(&this.Kmer) // sort buffer
+		// sort buffer
+		sortSlice(&this.Kmer)
 
 		for i,_ := range this.Kmer {
 			dstKmer  = &this.Kmer[lasti]
@@ -843,77 +804,15 @@ func (this *KmerHolder) Clear() {
 }
 
 func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
-	outFh, err := xopen.Wopen(outFile)
-	checkError(err)
-	defer outFh.Close()
-	return this.ToFileHandle(outFh, minCount)
-}
-
-type ChecksumK struct {
-	NumK     uint64
-	MinK     uint64
-	MaxK     uint64
-	MinC     uint8
-	MaxC     uint8
-	MinD     uint64
-	MaxD     uint64
-	SumC     uint64
-	SumD     uint64
-}
-
-func (this *ChecksumK) Add(kmer uint64, count uint8, kmerdiff uint64) {
-	this.NumK++
-	
-	if kmer     < this.MinK { this.MinK = kmer     }
-	if kmer     > this.MaxK { this.MaxK = kmer     }
-	if count    < this.MinC { this.MinC = count    }
-	if count    > this.MaxC { this.MaxC = count    }
-	if kmerdiff < this.MinD { this.MinD = kmerdiff }
-	if kmerdiff > this.MaxD { this.MaxD = kmerdiff }
-	
-	this.SumC += uint64(count)
-	this.SumD += kmerdiff
-}
-
-
-func (this *ChecksumK) Print() {
-	fmt.Printf("valid: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d min: %12d max: %12d\n",
-			   this.NumK, this.MinK, this.MaxK, this.SumD, this.MinD, this.MaxD, this.SumC, this.MinC, this.MaxC )
-}
-
-func (this *ChecksumK) IsEqual(that *ChecksumK) {
-	if this.NumK != that.NumK { log.Panicf("number of kmer not the same as expected. %d vs %d"   , this.NumK, that.NumK) }
-	if this.MinK != that.MinK { log.Panicf("minimal kmer not the same as expected. %d vs %d"     , this.MinK, that.MinK) }
-	if this.MaxK != that.MaxK { log.Panicf("maximum kmer not the same as expected. %d vs %d"     , this.MaxK, that.MaxK) }
-	if this.MinC != that.MinC { log.Panicf("minimal count not the same as expected. %d vs %d"    , this.MinC, that.MinC) }
-	if this.MaxC != that.MaxC { log.Panicf("maximum count not the same as expected. %d vs %d"    , this.MaxC, that.MaxC) }
-	if this.MinD != that.MinD { log.Panicf("minimal kmer diff not the same as expected. %d vs %d", this.MinD, that.MinD) }
-	if this.MaxD != that.MaxD { log.Panicf("maximum kmer diff not the same as expected. %d vs %d", this.MaxD, that.MaxD) }
-	if this.SumC != that.SumC { log.Panicf("sum of counts not the same as expected. %d vs %d"    , this.SumC, that.SumC) }
-	if this.SumD != that.SumD { log.Panicf("sum of diff not the same as expected. %d vs %d"      , this.SumD, that.SumD) }
-}
-			   
-func NewChecksumK() *ChecksumK {
-	csk       := ChecksumK{}
-
-	csk.NumK   = 0
-	csk.MinK   = MaxUint
-	csk.MaxK   = 0
-	csk.MinC   = 254
-	csk.MaxC   = 0
-	csk.MinD   = MaxUint
-	csk.MaxD   = 0
-	csk.SumC   = 0
-	csk.SumD   = 0
-	
-	return &csk
-}
-
-func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer, minCount uint8) bool {
-	println("saving to stream")
-	
 	kio := KmerIO{}
-	kio.initWriter(outFh)
+	kio.openWriter(outFile)
+	//defer kio.Flush()
+	defer kio.Close()
+	return this.ToFileHandle(&kio, minCount)
+}
+
+func (this *KmerHolder) ToFileHandle(kio *KmerIO, minCount uint8) bool {
+	println("saving to stream")
 	
 	var kmer     uint64 = 0
 	var count    uint8  = 0
@@ -976,27 +875,26 @@ func (this *KmerHolder) ToFileHandle(outFh *xopen.Writer, minCount uint8) bool {
 		log.Panicf("number of writen registers not the same as expected. %d vs %d", numK, regs)
 	}
 
-	kio.Flush()
+	//kio.Flush()
+	//kio.Close()
 	
 	return true
 }
 
 func (this *KmerHolder) FromFile(inFile string) bool {
-	inFh, err := xopen.Ropen(inFile)
-	checkError(err)
-	defer inFh.Close()
-	return this.FromFileHandle(inFh)
+	kio := KmerIO{}
+	kio.openReader(inFile)
+	defer kio.Close()
+	return this.FromFileHandle(&kio)
 }
 
-func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
+func (this *KmerHolder) FromFileHandle(kio *KmerIO) bool {
 	println("reading from stream")
 
 	println("cleaning database")
 	this.Clear()
 	println("database clean")
 	
-	kio := KmerIO{}
-	kio.initReader(inFh)
 	csk := NewChecksumK()
 
 	var kmer     uint64 = 0
@@ -1078,6 +976,8 @@ func (this *KmerHolder) FromFileHandle(inFh *xopen.Reader) bool {
 		
 	return true
 }
+
+
 
 
 

@@ -27,7 +27,6 @@ import (
 
 	"github.com/shenwei356/bio/seq"
 	"github.com/shenwei356/bio/seqio/fastx"
-	"github.com/shenwei356/xopen"
 	"github.com/spf13/cobra"
 )
 
@@ -393,13 +392,17 @@ var kmerCmd = &cobra.Command{
 
 		log.Info("saving to: ", outFile, "\n")
 
-		outfh, err := xopen.Wopen(outFile)
-		checkError(err)
-		defer outfh.Close()
+		res.ToFile(outFile, minCount)
 
-		//res.ToFile(outFile)
-		res.ToFileHandle(outfh, minCount)
-		outfh.Close()
+		//outfh, err := xopen.Wopen(outFile)
+		//checkError(err)
+		//defer outfh.Close()
+		//
+		//kio := KmerIO{}
+		//kio.initWriter(outfh)
+		//res.ToFileHandle(&kio, minCount)
+		//outfh.Flush()
+		//outfh.Close()
 
 		log.Info("reading from: ", outFile, "\n")
 		res.FromFile(outFile)
