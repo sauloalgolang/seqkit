@@ -3,7 +3,6 @@ package cmd
 import (
 	"runtime"
 	"fmt"
-	"golang.org/x/text/message"
 	"github.com/shenwei356/go-logging"
 )
 
@@ -15,22 +14,20 @@ const MinUint      = 0
 const MaxInt       = int64(MaxUint >> 1)
 const MinInt       = -MaxInt - 1
 
-var p = message.NewPrinter(message.MatchLanguage("en"))
-
 
 
 type KmerHolder struct {
 	KmerSize     int
-	KmerLen      int
+	NumKmers     int
 	KmerCap      int
-	LastKmerLen  int
+	LastNumKmers int
 	hist         Hist
 	Kmer         KmerDb
 }
 
 func (this *KmerHolder) Print() {	
 	log.Debugf(p.Sprintf( "kmerSize     %12d\n", this.KmerSize  ))
-	log.Debugf(p.Sprintf( "KmerLen      %12d\n", this.KmerLen   ))
+	log.Debugf(p.Sprintf( "NumKmers     %12d\n", this.NumKmers  ))
 	log.Debugf(p.Sprintf( "KmerCap      %12d\n", this.KmerCap   ))
 	log.Debugf(p.Sprintf( "Kmer         %12d CAP %12d\n", len(this.Kmer), cap(this.Kmer) ))
 	this.Kmer.Print()
@@ -52,17 +49,17 @@ func (this *KmerHolder) Sort() {
 func (this *KmerHolder) SortAct() {
 	//https://stackoverflow.com/questions/28999735/what-is-the-shortest-way-to-simply-sort-an-array-of-structs-by-arbitrary-field
 	
-	if this.KmerLen == this.LastKmerLen {
+	if this.NumKmers == this.LastNumKmers {
 		//println("no growth")
 		return
 	} else {
-		println("sort", this.KmerLen, this.LastKmerLen, len(this.Kmer), cap(this.Kmer))
+		println("sort", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer))
 	}
 	
 	//lvlD, _ := logging.LogLevel("DEBUG")
 	lvlI, _ := logging.LogLevel("INFO" )
 	
-	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Before :: %p Len %3d Cap %3d Prop %6.2f LastKmerLen %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastKmerLen)
+	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Before :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
 	
 	lasti           := 0
 	//lenBufferBefore := len(this.Kmer)
@@ -80,7 +77,7 @@ func (this *KmerHolder) SortAct() {
 	var minK      uint64 = MaxUint
 	var maxK      uint64 = 0
 	
-	if this.LastKmerLen == 0 {
+	if this.LastNumKmers == 0 {
 		// first adding
 		log.Infof("KmerDb    :: Sort :: All")
 
@@ -132,9 +129,9 @@ func (this *KmerHolder) SortAct() {
 		//}
 
 		indexDst := 0
-		indexSrc := this.LastKmerLen
+		indexSrc := this.LastNumKmers
 	
-		lenDst   := this.LastKmerLen
+		lenDst   := this.LastNumKmers
 		lenSrc   := len(this.Kmer)
 
 		//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Before")
@@ -194,7 +191,7 @@ func (this *KmerHolder) SortAct() {
 					//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order")
 					
 					if indexDst >= lenDst {
-						//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Swapping :: indexDst %03d LastKmerLen %03d", indexDst, this.LastKmerLen)
+						//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Swapping :: indexDst %03d LastNumKmers %03d", indexDst, this.LastNumKmers)
 						//this.Kmer.Print()
 
 						this.Kmer[indexDst], this.Kmer[indexSrc] = this.Kmer[indexSrc], this.Kmer[indexDst]
@@ -259,7 +256,7 @@ func (this *KmerHolder) SortAct() {
 	//}
 	
 	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Len Buffer Before %3d", lenBufferBefore   )
-	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Last Buffer Len   %3d", this.LastKmerLen)
+	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Last Buffer Len   %3d", this.LastNumKmers)
 	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Last I            %3d", lasti             )
 	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Sum B             %3d", sumCountBefore    )
 	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: Sum A             %3d", sumCountAfter     )
@@ -302,22 +299,22 @@ func (this *KmerHolder) SortAct() {
 	
 	//this.Kmer.Print()
 
-	if len(this.Kmer) < this.LastKmerLen {
+	if len(this.Kmer) < this.LastNumKmers {
 		this.Kmer.PrintLevel(lvlI)
 		log.Panicf("BUFFER REDUCED SIZE")
 	}
 	
-	this.KmerLen     = len(this.Kmer)
-	this.LastKmerLen = len(this.Kmer)
+	this.NumKmers     = len(this.Kmer)
+	this.LastNumKmers = len(this.Kmer)
 	println("Sorted")
-	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastKmerLen %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastKmerLen)
+	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
 	//this.Kmer.PrintLevel(lvlI)
 }
 
 func (this *KmerHolder) Add(kmer uint64) {
 	this.Sort()
-	this.Kmer.Add(kmer, this.LastKmerLen)
-	this.KmerLen = len(this.Kmer)
+	this.Kmer.Add(kmer, this.LastNumKmers)
+	this.NumKmers = len(this.Kmer)
 }
 
 func (this *KmerHolder) Close() {
@@ -353,13 +350,13 @@ func (this *KmerHolder) GetByIndex(i int) KmerUnit {
 
 func (this *KmerHolder) AddSorted(kmer uint64, count uint8) {
 	this.Kmer.AddSorted(kmer, count)
-	this.KmerLen = len(this.Kmer)
+	this.NumKmers = len(this.Kmer)
 }
 
 func (this *KmerHolder) Clear() {
 	this.Kmer.Clear()
-	this.KmerLen = len(this.Kmer)
-	this.LastKmerLen = len(this.Kmer)
+	this.NumKmers     = len(this.Kmer)
+	this.LastNumKmers = len(this.Kmer)
 }
 
 func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
@@ -552,8 +549,8 @@ func NewKmerHolder(kmerSize int) *KmerHolder {
 	var k KmerHolder     = KmerHolder{}
 	    k.KmerSize       = kmerSize
 	    k.KmerCap        = kmer_cap
-	    k.KmerLen        = 0
-	    k.LastKmerLen    = 0
+	    k.NumKmers       = 0
+	    k.LastNumKmers   = 0
 	    k.Kmer           = make(KmerDb, 0, k.KmerCap  )
 
 	log.Infof(p.Sprintf( "max db size %12d\n", max_kmer_size ))

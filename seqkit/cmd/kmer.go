@@ -35,24 +35,7 @@ import (
 	"github.com/shenwei356/go-logging"
 )
 
-type Stat struct {
-	Size      uint64
-	Registers uint64
-	Lines     uint64
-	Chars     uint64
-	Valids    uint64
-	Counted   uint64
-	Skipped   uint64
-	Resets    uint64
-}
-
-type StatMap    map[string]*Stat
-type StatMapMap map[string]StatMap
-
-
-		
-		
-
+var p = message.NewPrinter(message.MatchLanguage("en"))
 
 
 
@@ -117,48 +100,25 @@ var kmerCmd = &cobra.Command{
 			seq.ValidateSeq = true
 		}
 
-		files              := getFileList(args)
-
-		p := message.NewPrinter(message.MatchLanguage("en"))
+		files          := getFileList(args)
+				
+		var res         = NewKmerHolder(kmerSize)
+		var parser      = NewKmerParser(kmerSize, minLen, maxLen, res.Add)
+		var stats       = NewKmerReadStat()
 		
 		if profile {
 			log.Info( "profile" )
-		}		
-		
-		var val          uint64 = 0
-		var lav          uint64 = 0
-		var vav          uint64 = 0
-		var cv           uint64 = 0
-		var cw           uint64 = 0
-		var ci           uint64 = 0
-		var curr          int   = 0
-		var seqLen       uint64 = 0
+			parser.Profile = profile
+		}
 
-		var fileNames    []string = []string{}
-		var seqNames     map[string][]string = map[string][]string{}
-		var stats        Stat
-		var statsFile    StatMap = StatMap{}
-		var statsSeq     StatMapMap = StatMapMap{}
-
-		var statsFileP  *Stat
-		var statsSeqP   *Stat
-		var res         = NewKmerHolder(kmerSize)
-		
-		converter := NewConverter(kmerSize)
-		
 		//checkError(fmt.Errorf("done"))
 		
 		var err error
-		var sequence *seq.Seq
 		var record *fastx.Record
 		var fastxReader *fastx.Reader
 		for _, file := range files {
 			fastxReader, err = fastx.NewReader(alphabet, file, idRegexp)
 			checkError(err)
-
-			statsFile[file]            = &Stat{0,0,0,0,0,0,0,0}
-			seqNames[file]             = []string{}
-			fileNames = append(fileNames, file)
 
 			for {
 				record, err = fastxReader.Read()
@@ -177,139 +137,14 @@ var kmerCmd = &cobra.Command{
 					checkError(fmt.Errorf("Not a DNA sequence"))
 				}
 				
-				sequence      = record.Seq
-
-				seqLen        = uint64(len(sequence.Seq))
-				
-				if minLen >= 0 && seqLen < uint64(minLen) {
-					continue
-				}
-
-				if maxLen >= 0 && seqLen > uint64(maxLen) {
-					continue
-				}
-				
-				statsFileP                 = statsFile[file]
-
-				stats     .Size           += seqLen
-				statsFileP.Size           += seqLen
-				
 				if fastxReader.IsFastq {
-					stats     .Lines += 1
-					statsFileP.Lines += 1
 					config.LineWidth  = 0
-					
-					if profile && statsFileP.Lines == 100 {
-						break
-					}
+					stats.AddSS(file, "FQ"       , parser.FastQ(&record.Seq.Seq))
 				} else {
-					log.Infof(p.Sprintf( "Parsing '%s' %12d\n", record.Name, seqLen ))
-
-					if statsSeq[file] == nil {
-						statsSeq[file] = StatMap{}
-					}
-
-					seqNames[file] = append(seqNames[file], string(record.Name))
-
-					statsSeq[file][string(record.Name)]            = &Stat{0,0,0,0,0,0,0,0}
-					statsSeqP = statsSeq[file][string(record.Name)]
-					
-					stats     .Registers      += 1
-					statsFileP.Registers      += 1
-					statsSeqP .Size            = seqLen
-				}
-				
-				val           = 0
-				lav           = 0
-				vav           = 0
-				curr          = 0
-				cv            = 0
-				cw            = 0
-				ci            = 0
-
-				for _, b := range sequence.Seq {
-					//fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
-
-					stats     .Chars += 1
-					statsFileP.Chars += 1
-
-					if ! fastxReader.IsFastq {
-						statsSeqP.Chars += 1
-						if profile && statsSeqP.Chars == 10000 {
-							break
-						}
-					}
-					
-					cv, cw, ci  = converter.Vals[ b ][0], converter.Vals[ b ][1], converter.Vals[ b ][2]
-					
-					//if count > 119200 {
-					//fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
-					//fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
-					//}
-					
-					if ci == 0 {
-						curr        = 0
-						val         = 0
-						lav         = 0
-						vav         = 0
-
-						stats     .Resets += 1
-						statsFileP.Resets += 1
-	
-						if ! fastxReader.IsFastq {
-							statsSeqP.Resets += 1
-						}
-
-						continue
-				
-					} else {
-						stats     .Valids += 1
-						statsFileP.Valids += 1
-	
-						if ! fastxReader.IsFastq {
-							statsSeqP.Valids += 1
-						}
-
-						val       <<= 2
-						val        &= converter.Cleaner
-						val        += cv
-				
-						lav       >>= 2
-						lav        += cw
-						
-						//if count > 119200 {
-						//fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
-						//fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
-						//}
-						
-						if curr == converter.KmerSize - 1 {
-							vav = val
-							
-							if lav < val {
-								vav = lav
-							}
-							
-							res.Add(vav)
-							stats     .Counted += 1
-							statsFileP.Counted += 1
-
-							if ! fastxReader.IsFastq {
-								statsSeqP.Counted += 1
-							}
-								
-							//if count > 119200 {
-							//fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
-							//}
-						} else {
-							//log.Info(".", count)
-							curr      += 1
-						}
-						//if count > 119200 {
-						//log.Info ()
-						//}
-					}
+					stats.AddSB(file, record.Name, parser.FastA(&record.Seq.Seq))
 				}
 			}
+				
 			config.LineWidth = lineWidth
 		}
 
@@ -320,77 +155,22 @@ var kmerCmd = &cobra.Command{
 		res.Close()
 		//log.Infof("Printing")
 		//res.Print()
-		println( "num kmers", res.KmerLen )
 		
-		for i:=0; i < res.KmerLen; i++ {
+		
+		for i:=0; i < res.NumKmers; i++ {
 			kmer  := res.GetByIndex(i)
 			//fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
 			kcoun += 1
 			ksums += uint64(kmer.Count)
 		}
 
-		log.Infof(p.Sprintf( "Num Files      %12d\n", len(files) ))
-		log.Infof(p.Sprintf( "Num Kmers      %12d\n", ksums      ))
-        log.Infof(p.Sprintf( "Num Uniq Kmers %12d\n", kcoun      ))
+		log.Info(p.Sprintf( "num kmers      %12d", res.NumKmers ))
+		log.Info(p.Sprintf( "Num Kmers      %12d", ksums        ))
+        log.Info(p.Sprintf( "Num Uniq Kmers %12d", kcoun        ))
 
-		//Size      uint64
-		//Registers uint64
-		//Lines     uint64
-		//Chars     uint64
-		//Valids    uint64
-		//Skipped   uint64
-		//Resets    uint64
-		log.Info("==========")
-
-        log.Infof(p.Sprintf( "Size      %12d\n", stats.Size      ))
-        log.Infof(p.Sprintf( "Registers %12d\n", stats.Registers ))
-        log.Infof(p.Sprintf( "Lines     %12d\n", stats.Lines     ))
-        log.Infof(p.Sprintf( "Chars     %12d\n", stats.Chars     ))
-        log.Infof(p.Sprintf( "Valids    %12d\n", stats.Valids    ))
-        log.Infof(p.Sprintf( "Counted   %12d\n", stats.Counted   ))
-        log.Infof(p.Sprintf( "Skipped   %12d\n", stats.Skipped   ))
-        log.Infof(p.Sprintf( "Resets    %12d\n", stats.Resets    ))
-
-		log.Info("==========")
-
-		for _, filename := range fileNames {
-			fStat    := statsFile[filename]
-			seqStats := statsSeq[filename]
-
-			log.Info("  File: ", filename)
-
-			log.Infof(p.Sprintf( "    Size      %12d\n", fStat.Size      ))
-			log.Infof(p.Sprintf( "    Registers %12d\n", fStat.Registers ))
-			log.Infof(p.Sprintf( "    Lines     %12d\n", fStat.Lines     ))
-			log.Infof(p.Sprintf( "    Chars     %12d\n", fStat.Chars     ))
-			log.Infof(p.Sprintf( "    Valids    %12d\n", fStat.Valids    ))
-			log.Infof(p.Sprintf( "    Counted   %12d\n", fStat.Counted   ))
-			log.Infof(p.Sprintf( "    Skipped   %12d\n", fStat.Skipped   ))
-			log.Infof(p.Sprintf( "    Resets    %12d\n", fStat.Resets    ))
-
-			log.Info("  ----------")
-
-			for _, seqName := range seqNames[filename] {
-				fStat := seqStats[seqName]
-
-				log.Info("    Sequence: ", seqName)
-
-				log.Infof(p.Sprintf( "      Size      %12d\n", fStat.Size      ))
-				log.Infof(p.Sprintf( "      Registers %12d\n", fStat.Registers ))
-				log.Infof(p.Sprintf( "      Lines     %12d\n", fStat.Lines     ))
-				log.Infof(p.Sprintf( "      Chars     %12d\n", fStat.Chars     ))
-				log.Infof(p.Sprintf( "      Valids    %12d\n", fStat.Valids    ))
-				log.Infof(p.Sprintf( "      Counted   %12d\n", fStat.Counted   ))
-				log.Infof(p.Sprintf( "      Skipped   %12d\n", fStat.Skipped   ))
-				log.Infof(p.Sprintf( "      Resets    %12d\n", fStat.Resets    ))
-
-				log.Info("    **********")
-			}
-			log.Info("  ----------")
-		}
-		log.Info("==========")
-
-		log.Info("saving to: ", outFile, "\n")
+		stats.Print()
+		
+		log.Info("Saving to: ", outFile, "\n")
 
 		res.ToFile(outFile, minCount)
 
