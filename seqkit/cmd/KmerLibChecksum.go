@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"bytes"
 )
 
 type ChecksumK struct {
@@ -28,11 +28,6 @@ func (this *ChecksumK) Add(kmer uint64, count uint8, kmerdiff uint64) {
 	
 	this.SumC += uint64(count)
 	this.SumD += kmerdiff
-}
-
-func (this *ChecksumK) Print() {
-	fmt.Printf("valid: %12d :: kmer min: %12d max: %12d :: diff sum: %12d min: %12d max: %12d :: count sum: %12d min: %12d max: %12d\n",
-			   this.NumK, this.MinK, this.MaxK, this.SumD, this.MinD, this.MaxD, this.SumC, this.MinC, this.MaxC )
 }
 
 func (this *ChecksumK) IsEqual(that *ChecksumK) {
@@ -63,4 +58,24 @@ func NewChecksumK() *ChecksumK {
 	return &csk
 }
 
+func (this ChecksumK) String() string {
+	var buffer bytes.Buffer
 
+	buffer.WriteString(p.Sprintf("Kmer  Valid: %12d\n", this.NumK ))
+	buffer.WriteString(p.Sprintf("Kmer  Min  : %12d\n", this.MinK ))
+	buffer.WriteString(p.Sprintf("Kmer  Max  : %12d\n", this.MaxK ))
+	buffer.WriteString(p.Sprintf(""))
+	buffer.WriteString(p.Sprintf("Diff  Sum  : %12d\n", this.SumD ))
+	buffer.WriteString(p.Sprintf("Diff  Min  : %12d\n", this.MinD ))
+	buffer.WriteString(p.Sprintf("Diff  Max  : %12d\n", this.MaxD ))
+	buffer.WriteString(p.Sprintf(""))
+	buffer.WriteString(p.Sprintf("Count Sum  : %12d\n", this.SumC ))
+	buffer.WriteString(p.Sprintf("Count Min  : %12d\n", this.MinC ))
+	buffer.WriteString(p.Sprintf("Count Max  : %12d\n", this.MaxC ))
+
+	return buffer.String()
+}
+
+func (this *ChecksumK) Print() {
+	log.Info(p.Sprintf("\n%v", this))
+}

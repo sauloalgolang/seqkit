@@ -148,31 +148,27 @@ var kmerCmd = &cobra.Command{
 			config.LineWidth = lineWidth
 		}
 
-		var kcoun uint64 = 0
-		var ksums uint64 = 0
-		
 		log.Infof("Closing")
 		res.Close()
 		//log.Infof("Printing")
 		//res.Print()
 		
-		
+		log.Infof("Generating Histogram")
+		hist := NewHist()
 		for i:=0; i < res.NumKmers; i++ {
 			kmer  := res.GetByIndex(i)
 			//fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
-			kcoun += 1
-			ksums += uint64(kmer.Count)
+			hist.Add(kmer.Count)
 		}
-
-		log.Info(p.Sprintf( "num kmers      %12d", res.NumKmers ))
-		log.Info(p.Sprintf( "Num Kmers      %12d", ksums        ))
-        log.Info(p.Sprintf( "Num Uniq Kmers %12d", kcoun        ))
+		hist.Print()
 
 		stats.Print()
 		
 		log.Info("Saving to: ", outFile, "\n")
 
 		res.ToFile(outFile, minCount)
+
+		log.Info("Finished saving\n")
 
 		//outfh, err := xopen.Wopen(outFile)
 		//checkError(err)
@@ -184,10 +180,9 @@ var kmerCmd = &cobra.Command{
 		//outfh.Flush()
 		//outfh.Close()
 
-		log.Info("reading from: ", outFile, "\n")
+		log.Info("Reading from: ", outFile, "\n")
 		res.FromFile(outFile)
-		
-		log.Info("finished saving\n")
+		log.Info("Finished reading\n")
 	},
 }
 
