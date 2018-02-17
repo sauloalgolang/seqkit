@@ -160,8 +160,10 @@ var kmerCmd = &cobra.Command{
 			//fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
 			hist.Add(kmer.Count)
 		}
+		log.Infof("Printing Histogram")
 		hist.Print()
 
+		log.Infof("Printing Statistics")
 		stats.Print()
 		
 		log.Info("Saving to: ", outFile, "\n")

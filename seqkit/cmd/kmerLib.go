@@ -52,7 +52,7 @@ func (this *KmerHolder) SortAct() {
 		//println("no growth")
 		return
 	} else {
-		log.Info(p.Sprintf("sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer)))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer)))
 	}
 	
 	//lvlD, _ := logging.LogLevel("DEBUG")
@@ -78,7 +78,7 @@ func (this *KmerHolder) SortAct() {
 	
 	if this.LastNumKmers == 0 {
 		// first adding
-		log.Info("KmerDb    :: Sort :: All")
+		log.Info("KmerDb    :: Sort :: Add")
 
 		// sort buffer
 		sortSlice(&this.Kmer)
@@ -277,23 +277,23 @@ func (this *KmerHolder) SortAct() {
 	if len(this.Kmer) >= ( 4 * (cap(this.Kmer) / 5)) {
 		newCap := (cap(this.Kmer) / 4 * 6)
 
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: Before :: Len     %d", len(this.Kmer)))
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: Before :: Cap     %d", cap(this.Kmer)))
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: Before :: New Cap %d", newCap))
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: Before :: Address %p", this.Kmer))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: Before :: Len     %d", len(this.Kmer)))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: Before :: Cap     %d", cap(this.Kmer)))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: Before :: New Cap %d", newCap))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: Before :: Address %p", this.Kmer))
 		
 		t := make(KmerDb, len(this.Kmer), newCap)
 		copy(t, this.Kmer)
 		this.Kmer = t
 		
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: After  :: Len     %d", len(this.Kmer)))
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: After  :: Cap     %d", cap(this.Kmer)))
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: After  :: New Cap %d", newCap))
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: After  :: Address %p", this.Kmer))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: After  :: Len     %d", len(this.Kmer)))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: After  :: Cap     %d", cap(this.Kmer)))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: After  :: New Cap %d", newCap))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: After  :: Address %p", this.Kmer))
 		
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: Running GC"))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: Running GC"))
 		runtime.GC()
-		log.Info(p.Sprintf("KmerDb    :: Merge :: Merge & Sort :: Extend :: GC Run"))
+		log.Info(p.Sprintf("KmerDb    :: Sort :: Extend :: GC Run"))
 	}
 	
 	//this.Kmer.Print()
@@ -305,8 +305,8 @@ func (this *KmerHolder) SortAct() {
 	
 	this.NumKmers     = len(this.Kmer)
 	this.LastNumKmers = len(this.Kmer)
-	log.Info("Sorted")
-	log.Info(p.Sprintf("sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer)))
+	log.Info("KmerDb    :: Sort :: Sorted")
+	log.Info(p.Sprintf("KmerDb    :: Sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer)))
 	//log.Debugf("KmerDb    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
 	//this.Kmer.PrintLevel(lvlI)
 }
@@ -369,6 +369,11 @@ func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
 
 func (this *KmerHolder) ToFileHandle(kio *KmerIO, minCount uint8) bool {
 	log.Info("saving to stream")
+
+	log.Info("saving to stream :: sorting database")
+	this.SortAct()
+	log.Info("saving to stream :: database sorted")
+
 	
 	var kmer     uint64 = 0
 	var count    uint8  = 0
@@ -379,8 +384,8 @@ func (this *KmerHolder) ToFileHandle(kio *KmerIO, minCount uint8) bool {
 	csk := NewChecksumK()
 
 	var regs     uint64 = uint64(len(this.Kmer))
-	log.Info(p.Sprintf("writing %12d registers\n", regs))
-	log.Info(p.Sprintf("writing %12d minimun count\n", minCount))
+	log.Info(p.Sprintf("saving to stream :: writing %23d registers\n", regs))
+	log.Info(p.Sprintf("saving to stream :: writing %23d minimun count\n", minCount))
 
 	kio.WriteUint64(regs)
 	kio.WriteUint8(minCount)
@@ -421,19 +426,22 @@ func (this *KmerHolder) ToFileHandle(kio *KmerIO, minCount uint8) bool {
 		lastKmer = kmer
 	}
 
-	log.Info(p.Sprintf("WRITE registers: %12d ", numK ))
+	log.Info(p.Sprintf("saving to stream :: registers written: %12d ", numK ))
 	
 	csk.Print()
-
-	kio.WriteStruct(csk)
 
 	if numK != regs {
 		log.Panicf(p.Sprintf("number of writen registers not the same as expected. %d vs %d", numK, regs))
 	}
 
-	//kio.Flush()
-	//kio.Close()
+	csk.Check()
+
+	log.Info(p.Sprint("saving to stream :: data is valid. writing statistics"))
+
+	kio.WriteStruct(csk)
 	
+	log.Info(p.Sprint("saving to stream :: finished"))
+
 	return true
 }
 
@@ -447,9 +455,9 @@ func (this *KmerHolder) FromFile(inFile string) bool {
 func (this *KmerHolder) FromFileHandle(kio *KmerIO) bool {
 	log.Info("reading from stream")
 
-	log.Info("cleaning database")
+	log.Info("reading from stream :: cleaning database")
 	this.Clear()
-	log.Info("database clean")
+	log.Info("reading from stream :: database clean")
 	
 	csk := NewChecksumK()
 
@@ -474,8 +482,8 @@ func (this *KmerHolder) FromFileHandle(kio *KmerIO) bool {
 	
 	
 	
-	log.Info(p.Sprintf("reading %12d registers\n", regs))
-	log.Info(p.Sprintf("reading %12d minimum count\n", minCount))
+	log.Info(p.Sprintf("reading from stream :: reading %20d registers\n", regs))
+	log.Info(p.Sprintf("reading from stream :: reading %20d minimum count\n", minCount))
 	
 	for {
 		//succes = kio.ReadUint64(&kmerdiff)
@@ -520,23 +528,35 @@ func (this *KmerHolder) FromFileHandle(kio *KmerIO) bool {
 		}
 	}
 
-	log.Info(p.Sprintf("READ  registers: %12d ", numK))
-	csk.Print()
+	log.Info(p.Sprintf("reading from stream :: registers read: %12d ", numK))
 	
+	log.Info(p.Sprintf("reading from stream :: statistic of data acquired:"))
+	csk.Print()
+
 	if numK != regs { log.Panic(p.Sprintf("number of read registers not the same as expected. %d vs %d", numK, regs)) }
+
+	csk.Check()
+
+
+	log.Info(p.Sprintf("reading from stream :: reading statistics in file"))
 
 	cskC := NewChecksumK()
 
 	kio.ReadStruct(cskC)
 
-	csk.IsEqual(cskC)
+	log.Info(p.Sprintf("reading from stream :: statistic stored in the file:"))
+	csk.Print()
+	cskC.Check()
+	csk.IsEqual(*cskC)
 
+	log.Info(p.Sprintf("reading from stream :: data is valid. success"))
 	
-	
-	log.Info("sorting database")
+	log.Info("reading from stream :: sorting database")
 	this.SortAct()
-	log.Info("database sorted")
-		
+	log.Info("reading from stream :: database sorted")
+
+	log.Info("reading from stream :: finished")
+
 	return true
 }
 

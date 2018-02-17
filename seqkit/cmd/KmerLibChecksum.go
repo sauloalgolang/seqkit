@@ -30,16 +30,22 @@ func (this *ChecksumK) Add(kmer uint64, count uint8, kmerdiff uint64) {
 	this.SumD += kmerdiff
 }
 
-func (this *ChecksumK) IsEqual(that *ChecksumK) {
-	if this.NumK != that.NumK { log.Panicf("number of kmer not the same as expected. %d vs %d"   , this.NumK, that.NumK) }
-	if this.MinK != that.MinK { log.Panicf("minimal kmer not the same as expected. %d vs %d"     , this.MinK, that.MinK) }
-	if this.MaxK != that.MaxK { log.Panicf("maximum kmer not the same as expected. %d vs %d"     , this.MaxK, that.MaxK) }
-	if this.MinC != that.MinC { log.Panicf("minimal count not the same as expected. %d vs %d"    , this.MinC, that.MinC) }
-	if this.MaxC != that.MaxC { log.Panicf("maximum count not the same as expected. %d vs %d"    , this.MaxC, that.MaxC) }
-	if this.MinD != that.MinD { log.Panicf("minimal kmer diff not the same as expected. %d vs %d", this.MinD, that.MinD) }
-	if this.MaxD != that.MaxD { log.Panicf("maximum kmer diff not the same as expected. %d vs %d", this.MaxD, that.MaxD) }
-	if this.SumC != that.SumC { log.Panicf("sum of counts not the same as expected. %d vs %d"    , this.SumC, that.SumC) }
-	if this.SumD != that.SumD { log.Panicf("sum of diff not the same as expected. %d vs %d"      , this.SumD, that.SumD) }
+func (this ChecksumK) Check() {
+	if (this.MaxK - this.MinK) != this.SumD {
+		log.Panic(p.Sprintf("Total range of kmers is invalid. Min %d Max %d Diff %d SumDiff %d"   , this.MaxK, this.MinK, (this.MaxK - this.MinK), this.SumD))
+	}
+}
+
+func (this ChecksumK) IsEqual(that ChecksumK) {
+	if this.NumK != that.NumK { log.Panic(p.Sprintf("number of kmer not the same as expected. %d vs %d"   , this.NumK, that.NumK)) }
+	if this.MinK != that.MinK { log.Panic(p.Sprintf("minimal kmer not the same as expected. %d vs %d"     , this.MinK, that.MinK)) }
+	if this.MaxK != that.MaxK { log.Panic(p.Sprintf("maximum kmer not the same as expected. %d vs %d"     , this.MaxK, that.MaxK)) }
+	if this.MinC != that.MinC { log.Panic(p.Sprintf("minimal count not the same as expected. %d vs %d"    , this.MinC, that.MinC)) }
+	if this.MaxC != that.MaxC { log.Panic(p.Sprintf("maximum count not the same as expected. %d vs %d"    , this.MaxC, that.MaxC)) }
+	if this.MinD != that.MinD { log.Panic(p.Sprintf("minimal kmer diff not the same as expected. %d vs %d", this.MinD, that.MinD)) }
+	if this.MaxD != that.MaxD { log.Panic(p.Sprintf("maximum kmer diff not the same as expected. %d vs %d", this.MaxD, that.MaxD)) }
+	if this.SumC != that.SumC { log.Panic(p.Sprintf("sum of counts not the same as expected. %d vs %d"    , this.SumC, that.SumC)) }
+	if this.SumD != that.SumD { log.Panic(p.Sprintf("sum of diff not the same as expected. %d vs %d"      , this.SumD, that.SumD)) }
 }
 			   
 func NewChecksumK() *ChecksumK {
