@@ -102,21 +102,14 @@ var kmerCmd = &cobra.Command{
 
 		files          := getFileList(args)
 		
-		var res         = NewKmerHolder(kmerSize)
-		
-		var parser      = NewKmerParser(kmerSize, minLen, maxLen, res.Add)
+		var holder      = NewKmerHolder(kmerSize, minLen, maxLen, profile)
+
 		//add := make(chan uint64, config.Threads*3);
 		//var parser      = NewKmerParser(kmerSize, minLen, maxLen, func(v uint64){
 		//	println("adding v", v, "max", config.Threads)
 		//	add <- v
 		//})
-
-		var stats       = NewKmerReadStat()
 		
-		if profile {
-			log.Info( "profiling" )
-			parser.Profile = profile
-		}
 
 		log.Info( "threads", config.Threads )
 
@@ -148,11 +141,11 @@ var kmerCmd = &cobra.Command{
 				
 				if fastxReader.IsFastq {
 					config.LineWidth = 0
-					parser.FastQ(&record.Seq.Seq, func(s *Stat) {stats.AddSS(file, "FQ", s)})
+					holder.ParseFastQ(file, "FQ", &record.Seq.Seq)
 					//stats.AddSS(file, "FQ"       , parser.FastQ(&record.Seq.Seq))
 				} else {
 					log.Info("Parsing", string(record.Name))
-					parser.FastA(&record.Seq.Seq, func(s *Stat) {stats.AddSB(file, record.Name, s)})
+					holder.ParseFastA(file, record.Name, &record.Seq.Seq)
 					//stats.AddSB(file, record.Name, parser.FastA(&record.Seq.Seq))
 				}
 			}
@@ -160,19 +153,17 @@ var kmerCmd = &cobra.Command{
 			config.LineWidth = lineWidth
 		}
 
-		//res.Listen(add)
-
-		parser.Wait()
+		holder.Wait()
 		
 		log.Infof("Closing")
-		res.Close()
+		holder.Close()
 		//log.Infof("Printing")
-		//res.Print()
+		//holder.Print()
 		
 		log.Infof("Generating Histogram")
 		hist := NewHist()
-		for i:=0; i < res.NumKmers; i++ {
-			kmer  := res.GetByIndex(i)
+		for i:=0; i < holder.NumKmers; i++ {
+			kmer  := holder.GetByIndex(i)
 			//fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
 			hist.Add(kmer.Count)
 		}
@@ -180,11 +171,11 @@ var kmerCmd = &cobra.Command{
 		hist.Print()
 
 		log.Infof("Printing Statistics")
-		stats.Print()
+		holder.PrintStats()
 		
 		log.Info("Saving to: ", outFile, "\n")
 
-		res.ToFile(outFile, minCount)
+		holder.ToFile(outFile, minCount)
 
 		log.Info("Finished saving\n")
 
@@ -194,12 +185,12 @@ var kmerCmd = &cobra.Command{
 		//
 		//kio := KmerIO{}
 		//kio.initWriter(outfh)
-		//res.ToFileHandle(&kio, minCount)
+		//holder.ToFileHandle(&kio, minCount)
 		//outfh.Flush()
 		//outfh.Close()
 
 		log.Info("Reading from: ", outFile, "\n")
-		res.FromFile(outFile)
+		holder.FromFile(outFile)
 		log.Info("Finished reading\n")
 	},
 }

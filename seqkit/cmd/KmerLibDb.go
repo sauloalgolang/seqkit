@@ -12,6 +12,11 @@ type KmerUnit struct {
 
 type KmerDb []KmerUnit
 
+func NewKmerDB() (k KmerDb) {
+	k = make(KmerDb, 0, 0)
+	return k
+}
+
 func (this *KmerDb) Print() {
 	lvl, _ := logging.LogLevel("DEBUG")
 	this.PrintLevel(lvl)

@@ -1,9 +1,5 @@
 package cmd
 
-import (
-	"sync"
-)
-
 type FORMAT int
 
 const (
@@ -17,58 +13,57 @@ type KmerParser struct {
 	val        uint64
 	lav        uint64
 	vav        uint64
-	
+
 	cv         uint64
 	cw         uint64
 	ci         uint64
-	
+
 	curr        int
-	
+
 	minLen      int
 	maxLen      int
-	
+
 	Profile    bool
-	
-	Add        AdderFunc
+
+	add       AdderFunc
 
 	Converter *Converter
-	wg         sync.WaitGroup
 }
 
-func NewKmerParser(kmerSize, minLen, maxLen int, add AdderFunc) (*KmerParser){
+func NewKmerParser(kmerSize, minLen, maxLen int, profile bool, add AdderFunc) (*KmerParser){
 	c := NewConverter(kmerSize)
 
-    k := KmerParser{0,0,0, 0,0,0, 0, minLen, maxLen, false, add, c, sync.WaitGroup{}}
+    k := KmerParser{}
+	k.val       = 0
+	k.lav       = 0
+	k.vav       = 0
+
+	k.cv        = 0
+	k.cw        = 0
+	k.ci        = 0
+
+	k.curr      = 0
+
+	k.minLen    = minLen
+	k.maxLen    = maxLen
+
+	k.Profile   = profile
+
+	k.add       = add
+
+	k.Converter = c
 
     return &k
 }
 
-func (this *KmerParser) Wait() {
-	log.Info("Waiting for conclusion")
-	this.wg.Wait()
-	log.Info("Finished reading")
+func (this *KmerParser) FastQ(seq *[]byte) (s *Stat) {
+	s = this.fast(seq, FASTQ)
+	return
 }
 
-func (this *KmerParser) FastQ(seq *[]byte, fs func (*Stat)) {
-	this.wg.Add(1)
-	//println("wg.Addding")
-	go func() {
-		defer this.wg.Done()
-		s := this.fast(seq, FASTQ)
-		fs( s )
-		//println("wg.Done")
-	}()
-}
-
-func (this *KmerParser) FastA(seq *[]byte, fs func (*Stat)) {
-	this.wg.Add(1)
-	//println("wg.Addding")
-	go func() {
-		defer this.wg.Done()
-		s := this.fast(seq, FASTA)
-		fs( s )
-		//println("wg.Done")
-	}()
+func (this *KmerParser) FastA(seq *[]byte) (s *Stat) {
+	s = this.fast(seq, FASTA)
+	return
 }
 
 func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
@@ -144,7 +139,7 @@ func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
                     this.vav = this.lav
                 }
                 
-                this.Add(this.vav)
+                this.add(this.vav)
                 s.Counted += 1
                     
                 //if count > 119200 {

@@ -16,6 +16,22 @@ type ChecksumK struct {
 	SumD     uint64
 }
 
+func NewChecksumK() (csk *ChecksumK) {
+	csk        = new(ChecksumK)
+
+	csk.NumK   = 0
+	csk.MinK   = MaxUint
+	csk.MaxK   = 0
+	csk.MinC   = 254
+	csk.MaxC   = 0
+	csk.MinD   = MaxUint
+	csk.MaxD   = 0
+	csk.SumC   = 0
+	csk.SumD   = 0
+
+	return
+}
+
 func (this *ChecksumK) Add(kmer uint64, count uint8, kmerdiff uint64) {
 	this.NumK++
 	
@@ -46,22 +62,6 @@ func (this ChecksumK) IsEqual(that ChecksumK) {
 	if this.MaxD != that.MaxD { log.Panic(p.Sprintf("maximum kmer diff not the same as expected. %d vs %d", this.MaxD, that.MaxD)) }
 	if this.SumC != that.SumC { log.Panic(p.Sprintf("sum of counts not the same as expected. %d vs %d"    , this.SumC, that.SumC)) }
 	if this.SumD != that.SumD { log.Panic(p.Sprintf("sum of diff not the same as expected. %d vs %d"      , this.SumD, that.SumD)) }
-}
-			   
-func NewChecksumK() *ChecksumK {
-	csk       := ChecksumK{}
-
-	csk.NumK   = 0
-	csk.MinK   = MaxUint
-	csk.MaxK   = 0
-	csk.MinC   = 254
-	csk.MaxC   = 0
-	csk.MinD   = MaxUint
-	csk.MaxD   = 0
-	csk.SumC   = 0
-	csk.SumD   = 0
-	
-	return &csk
 }
 
 func (this ChecksumK) String() string {

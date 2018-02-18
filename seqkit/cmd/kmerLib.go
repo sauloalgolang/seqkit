@@ -18,19 +18,24 @@ const MinInt       = -MaxInt - 1
 
 
 type KmerHolder struct {
-	KmerSize     int
-	NumKmers     int
-	KmerCap      int
-	KmerCount    int
-	LastNumKmers int
-	LastPrint    time.Time
-	StartTIme    time.Time
-	hist         Hist
-	Kmer         KmerDb
-	mux          sync.Mutex
+	KmerSize      int
+	MinLen        int
+	MaxLen        int
+	KmerCap       int
+	KmerCount     int
+	NumKmers      int
+	LastNumKmers  int
+	Profile       bool
+	LastPrint     time.Time
+	StartTIme     time.Time
+	Kmer          KmerDb
+	ParserG      *KmerParser
+	ReadStatsG   *KmerReadStat
+	mux           sync.Mutex
+	wg            sync.WaitGroup
 }
 
-func NewKmerHolder(kmerSize int) *KmerHolder {
+func NewKmerHolder(kmerSize, minLen, maxLen int, profile bool) (k *KmerHolder) {
 	max_kmer_size := (2 << (uint(kmerSize)*2)) / 2
 	
 	kmer_cap      := max_kmer_size / 100
@@ -39,15 +44,26 @@ func NewKmerHolder(kmerSize int) *KmerHolder {
 		kmer_cap = min_capacity
 	}
 	
-	var k KmerHolder   = KmerHolder{}
-	    k.KmerSize     = kmerSize
-	    k.KmerCap      = kmer_cap
-	    k.NumKmers     = 0
-		k.KmerCount    = 0
-	    k.LastNumKmers = 0
-		k.LastPrint    = time.Now()
-		k.StartTIme    = k.LastPrint
-	    k.Kmer         = make(KmerDb, 0, k.KmerCap  )
+	k              = new(KmerHolder)
+	k.KmerSize     = kmerSize
+	k.MinLen       = minLen
+	k.MaxLen       = maxLen
+	k.KmerCap      = kmer_cap
+	k.KmerCount    = 0
+	k.NumKmers     = 0
+	k.LastNumKmers = 0
+	k.Profile      = profile
+	k.LastPrint    = time.Now()
+	k.StartTIme    = k.LastPrint
+	k.Kmer         = make(KmerDb, 0, kmer_cap)
+	k.ParserG      = NewKmerParser(k.KmerSize, k.MinLen, k.MaxLen, k.Profile, k.Add)
+	k.ReadStatsG   = NewKmerReadStat()
+	k.mux          = sync.Mutex{}
+	k.wg           = sync.WaitGroup{}
+
+	if k.Profile {
+		log.Info( "profiling" )
+	}
 
 	log.Info(p.Sprintf( "max db size %12d\n", max_kmer_size ))
 	log.Info(p.Sprintf( "kmer size   %12d\n", k.KmerSize    ))
@@ -62,12 +78,14 @@ func (this *KmerHolder) Print() {
 	log.Debugf(p.Sprintf( "NumKmers     %12d\n", this.NumKmers  ))
 	log.Debugf(p.Sprintf( "KmerCap      %12d\n", this.KmerCap   ))
 	log.Debugf(p.Sprintf( "Kmer         %12d CAP %12d\n", len(this.Kmer), cap(this.Kmer) ))
+
 	this.Kmer.Print()
 }
 
 func (this *KmerHolder) Add(kmer uint64) {
 	this.mux.Lock()
 	defer this.mux.Unlock()
+
 	this.KmerCount++
 	
 	if this.KmerCount % 1000000 == 0 {
@@ -85,17 +103,39 @@ func (this *KmerHolder) Add(kmer uint64) {
 	this.NumKmers = len(this.Kmer)
 }
 
-//
-//func (this *KmerHolder) Listen(val chan uint64) {
-//	println("LISTENING")
-//	
-//	for k := range val {
-//		this.Add(k)
-//	}
-//	
-//	println("FINISHED LISTENING")
-//}
+func (this *KmerHolder) ParseFastQ(key1 string, key2 string, seq *[]byte) {
+	// not necessary but why not?
+	this.wg.Add(1)
+	defer this.wg.Done()
 
+	this.mux.Lock()
+	defer this.mux.Unlock()
+
+	s := this.ParserG.fast(seq, FASTQ)
+	this.ReadStatsG.AddSS(key1, key2, *s)
+}
+
+func (this *KmerHolder) ParseFastA(key1 string, key2 []byte, seq *[]byte) {
+	this.wg.Add(1)
+
+	go func() {
+		defer this.wg.Done()
+
+		//p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, this.Add)
+		p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, func(uint64) {})
+		s := p.fast(seq, FASTA)
+
+		this.mux.Lock()
+		defer this.mux.Unlock()
+		this.ReadStatsG.AddSB(key1, key2, *s)
+	}()
+}
+
+func (this *KmerHolder) Wait() {
+	log.Info("Waiting for conclusion")
+	this.wg.Wait()
+	log.Info("Finished reading")
+}
 
 func (this *KmerHolder) Close() {
 	this.SortAct()
@@ -138,6 +178,13 @@ func (this *KmerHolder) Clear() {
 	this.NumKmers     = len(this.Kmer)
 	this.LastNumKmers = len(this.Kmer)
 }
+
+func (this *KmerHolder) PrintStats() {
+	this.ReadStatsG.Print()
+}
+
+
+
 
 
 
@@ -429,13 +476,12 @@ func (this *KmerHolder) SortAct() {
 
 
 
-
 func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
-	kio := KmerIO{}
+	kio := NewKmerIO()
 	kio.openWriter(outFile)
 	//defer kio.Flush()
 	defer kio.Close()
-	return this.ToFileHandle(&kio, minCount)
+	return this.ToFileHandle(kio, minCount)
 }
 
 func (this *KmerHolder) ToFileHandle(kio *KmerIO, minCount uint8) bool {
@@ -455,7 +501,7 @@ func (this *KmerHolder) ToFileHandle(kio *KmerIO, minCount uint8) bool {
 	csk := NewChecksumK()
 
 	var regs     uint64 = uint64(len(this.Kmer))
-	log.Info(p.Sprintf("saving to stream :: writing %23d registers\n", regs))
+	log.Info(p.Sprintf("saving to stream :: writing %23d registers\n"    , regs    ))
 	log.Info(p.Sprintf("saving to stream :: writing %23d minimun count\n", minCount))
 
 	kio.WriteUint64(regs)

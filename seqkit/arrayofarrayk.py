@@ -96,17 +96,31 @@ user    4m52.547s
 sys     0m12.422s
 
 
--k7 -j 8
-[INFO] KmerDb    :: Sort :: num kmers:       10,043 last kmer:       10,043 len kmer:       10,043 cap kmer:    1,000,000
-real    4m0.351s
-user    5m19.844s
-sys     0m10.141s
 
 -k7 -j 1
-[INFO] KmerDb    :: Sort :: num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
-real    3m34.583s
-user    3m33.625s
-sys     0m0.609s
+num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
+real    3m46.348s
+user    3m45.016s
+sys     0m0.766s
+
+-k7 -j 2
+num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
+real    5m29.863s
+user    7m39.469s
+sys     1m25.125s
+
+-k7 -j 4
+num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
+real    4m26.460s
+user    6m0.625s
+sys     0m10.266s
+
+-k7 -j 8
+num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
+real    4m30.807s
+user    6m14.781s
+sys     0m12.078s
+
 
 """
 import sys

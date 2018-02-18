@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"sync"
 )
 
 type StatMap    map[string]*Stat
@@ -19,11 +18,18 @@ type Stat struct {
 }
 
 func NewStat() (s *Stat) {
-	s = &Stat{0,0,0,0,0,0,0}
+	s           = new(Stat)
+	s.Size      = 0
+	s.Sequences = 0
+	s.Chars     = 0
+	s.Resets    = 0
+	s.Valids    = 0
+	s.Counted   = 0
+	s.Skipped   = 0
 	return
 }
 
-func (this *Stat) Sum( that *Stat ) {
+func (this *Stat) Sum( that Stat ) {
 	this.Size      += that.Size
 	this.Sequences += that.Sequences
 	this.Chars     += that.Chars
@@ -62,11 +68,10 @@ type KmerReadStat struct {
 	Key1 []string                    // ordered keys lvl1
 	Key2 map[string][]string         // ordered keys lvl2 grouped by lvl1
 	Dict map[string]map[string]*Stat // key1 key2 stats
-	mux  sync.Mutex
 }
 
 func NewKmerReadStat() (k *KmerReadStat) {
-	k = &KmerReadStat{}
+	k      = new(KmerReadStat)
 	k.Key1 = []string{}
 	k.Key2 = make(map[string][]string)
 	k.Dict = make(map[string]map[string]*Stat)
@@ -74,12 +79,12 @@ func NewKmerReadStat() (k *KmerReadStat) {
 	return
 }
 
-func (this *KmerReadStat) AddSS(key1 string, key2 string, val *Stat) { this.add(       key1 ,        key2 , val) } //String String
-func (this *KmerReadStat) AddSB(key1 string, key2 []byte, val *Stat) { this.add(       key1 , string(key2), val) } //String Byte
-func (this *KmerReadStat) AddBS(key1 []byte, key2 string, val *Stat) { this.add(string(key1),        key2 , val) } //Byte   String
-func (this *KmerReadStat) AddBB(key1 []byte, key2 []byte, val *Stat) { this.add(string(key1), string(key2), val) } //Byte   Byte  
+func (this *KmerReadStat) AddSS(key1 string, key2 string, val Stat) { this.add(       key1 ,        key2 , val) } //String String
+func (this *KmerReadStat) AddSB(key1 string, key2 []byte, val Stat) { this.add(       key1 , string(key2), val) } //String Byte
+func (this *KmerReadStat) AddBS(key1 []byte, key2 string, val Stat) { this.add(string(key1),        key2 , val) } //Byte   String
+func (this *KmerReadStat) AddBB(key1 []byte, key2 []byte, val Stat) { this.add(string(key1), string(key2), val) } //Byte   Byte
 
-func (this *KmerReadStat) Add(key1 interface{}, key2 interface{}, val *Stat) { // Universal
+func (this *KmerReadStat) Add(key1 interface{}, key2 interface{}, val Stat) { // Universal
 	var k1, k2 string = "", ""
 	
 	switch key1 := key1.(type) {
@@ -103,21 +108,22 @@ func (this *KmerReadStat) Add(key1 interface{}, key2 interface{}, val *Stat) { /
 	 this.add(k1, k2, val)
 }
 
-func (this *KmerReadStat) add(key1, key2 string, val *Stat) {
-	this.mux.Lock()
-	defer this.mux.Unlock()
+func (this *KmerReadStat) add(key1, key2 string, val Stat) {
+	_,ok1 := this.Dict[key1]
 
-	if this.Dict[key1] == nil {
+	if ! ok1 {
 		this.Dict[key1] = make(map[string]*Stat)
 		this.Key2[key1] = []string{}
 		this.Key1       = append(this.Key1, key1)
 	}
-	
-	if this.Dict[key1][key2] == nil {
+
+	_,ok2 := this.Dict[key1][key2]
+
+	if ! ok2 {
 		this.Dict[key1][key2] = NewStat()
 		this.Key2[key1]       = append(this.Key2[key1], key2)
 	}
-	
+
 	this.Dict[key1][key2].Sum(val)
 }
 
@@ -135,8 +141,8 @@ func (this KmerReadStat) String() string {
 			buffer.WriteString(p.Sprintf("File Name %s Seq Name %s\n", fileName, seqName))
 			buffer.WriteString(p.Sprintf("%v", *this.Dict[fileName][seqName]))
 			
-			statFile.Sum(this.Dict[fileName][seqName])
-			statAll .Sum(this.Dict[fileName][seqName])
+			statFile.Sum(*this.Dict[fileName][seqName])
+			statAll .Sum(*this.Dict[fileName][seqName])
 		}
 		
 		numSeqsFile := len(this.Key2[fileName])

@@ -10,6 +10,12 @@ type Hist struct {
 	Hist   []uint64
 }
 
+func NewHist() (h *Hist) {
+	h = new(Hist)
+	h.Clear()
+	return
+}
+
 func (this *Hist) Add( val uint8 ) {
 	this.Unique++
 	this.Total += uint64(val)
@@ -47,10 +53,4 @@ func (this Hist) String() string {
 
 func (this Hist) Print() {
 	log.Info(p.Sprintf("\n%v", this))
-}
-
-func NewHist() (h *Hist) {
-	h = &Hist{}
-	h.Clear()
-	return
 }
