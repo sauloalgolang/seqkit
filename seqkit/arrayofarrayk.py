@@ -68,6 +68,46 @@ sys                78m28.188s |  52m41.609s    55m52.094s
                 variable   fixed
 /tmp/t.kmer.gz    100412  138724 72%
 
+
+
+
+-k5 -j 1
+num kmers:          512 last kmer:          512 len kmer:          512 cap kmer:    1,000,000
+real    2m43.211s
+user    2m42.094s
+sys     0m0.828s
+
+-k5 -j 2
+num kmers:          983 last kmer:          983 len kmer:          983 cap kmer:    1,000,000
+real    4m12.503s
+user    6m17.344s
+sys     1m24.422s
+
+-k5 -j 4
+num kmers:          955 last kmer:          955 len kmer:          955 cap kmer:    1,000,000
+real    3m15.581s
+user    4m48.688s
+sys     0m9.719s
+
+-k5 -j 8
+num kmers:          971 last kmer:          971 len kmer:          971 cap kmer:    1,000,000
+real    3m11.483s
+user    4m52.547s
+sys     0m12.422s
+
+
+-k7 -j 8
+[INFO] KmerDb    :: Sort :: num kmers:       10,043 last kmer:       10,043 len kmer:       10,043 cap kmer:    1,000,000
+real    4m0.351s
+user    5m19.844s
+sys     0m10.141s
+
+-k7 -j 1
+[INFO] KmerDb    :: Sort :: num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
+real    3m34.583s
+user    3m33.625s
+sys     0m0.609s
+
 """
 import sys
 import gzip

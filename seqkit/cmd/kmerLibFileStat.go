@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"sync"
 )
 
 type StatMap    map[string]*Stat
@@ -47,7 +48,7 @@ func (this Stat) String() string {
 }
 
 func (this Stat) Print() {
-	p.Printf("%v", this)
+	log.Info(p.Sprintf("%v", this))
 }
 
 
@@ -61,6 +62,7 @@ type KmerReadStat struct {
 	Key1 []string                    // ordered keys lvl1
 	Key2 map[string][]string         // ordered keys lvl2 grouped by lvl1
 	Dict map[string]map[string]*Stat // key1 key2 stats
+	mux  sync.Mutex
 }
 
 func NewKmerReadStat() (k *KmerReadStat) {
@@ -102,6 +104,9 @@ func (this *KmerReadStat) Add(key1 interface{}, key2 interface{}, val *Stat) { /
 }
 
 func (this *KmerReadStat) add(key1, key2 string, val *Stat) {
+	this.mux.Lock()
+	defer this.mux.Unlock()
+
 	if this.Dict[key1] == nil {
 		this.Dict[key1] = make(map[string]*Stat)
 		this.Key2[key1] = []string{}

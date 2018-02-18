@@ -3,6 +3,8 @@ package cmd
 import (
 	"runtime"
 	"github.com/shenwei356/go-logging"
+	"sync"
+	"time"
 )
 
 const min_capacity = 1000000
@@ -19,10 +21,41 @@ type KmerHolder struct {
 	KmerSize     int
 	NumKmers     int
 	KmerCap      int
+	KmerCount    int
 	LastNumKmers int
+	LastPrint    time.Time
+	StartTIme    time.Time
 	hist         Hist
 	Kmer         KmerDb
+	mux          sync.Mutex
 }
+
+func NewKmerHolder(kmerSize int) *KmerHolder {
+	max_kmer_size := (2 << (uint(kmerSize)*2)) / 2
+	
+	kmer_cap      := max_kmer_size / 100
+	
+	if kmer_cap < min_capacity {
+		kmer_cap = min_capacity
+	}
+	
+	var k KmerHolder   = KmerHolder{}
+	    k.KmerSize     = kmerSize
+	    k.KmerCap      = kmer_cap
+	    k.NumKmers     = 0
+		k.KmerCount    = 0
+	    k.LastNumKmers = 0
+		k.LastPrint    = time.Now()
+		k.StartTIme    = k.LastPrint
+	    k.Kmer         = make(KmerDb, 0, k.KmerCap  )
+
+	log.Info(p.Sprintf( "max db size %12d\n", max_kmer_size ))
+	log.Info(p.Sprintf( "kmer size   %12d\n", k.KmerSize    ))
+	log.Info(p.Sprintf( "kmer cap    %12d\n", k.KmerCap     ))
+	
+	return &k
+}
+
 
 func (this *KmerHolder) Print() {	
 	log.Debugf(p.Sprintf( "kmerSize     %12d\n", this.KmerSize  ))
@@ -31,6 +64,83 @@ func (this *KmerHolder) Print() {
 	log.Debugf(p.Sprintf( "Kmer         %12d CAP %12d\n", len(this.Kmer), cap(this.Kmer) ))
 	this.Kmer.Print()
 }
+
+func (this *KmerHolder) Add(kmer uint64) {
+	this.mux.Lock()
+	defer this.mux.Unlock()
+	this.KmerCount++
+	
+	if this.KmerCount % 1000000 == 0 {
+		tnow  := time.Now()
+		tdiff := tnow.Sub(this.LastPrint)
+		tinit := tnow.Sub(this.StartTIme)
+		
+		log.Info(p.Sprintf( "%12d %v %v\n", this.KmerCount, tinit, tdiff ))
+		
+		this.LastPrint      = time.Now()
+	}
+	
+	this.Sort()
+	this.Kmer.Add(kmer, this.LastNumKmers)
+	this.NumKmers = len(this.Kmer)
+}
+
+//
+//func (this *KmerHolder) Listen(val chan uint64) {
+//	println("LISTENING")
+//	
+//	for k := range val {
+//		this.Add(k)
+//	}
+//	
+//	println("FINISHED LISTENING")
+//}
+
+
+func (this *KmerHolder) Close() {
+	this.SortAct()
+	//lvlI, _ := logging.LogLevel("INFO")
+	//this.Kmer.PrintLevel(lvlI)
+}
+
+func (this *KmerHolder) HasKmer(kmer uint64) bool {
+	this.SortAct()
+	return this.Kmer.HasKmer(kmer)
+}
+
+func (this *KmerHolder) GetInfo(kmer uint64) (int, KmerUnit, bool) {
+	this.SortAct()
+	return this.Kmer.GetInfo(kmer)
+}
+
+func (this *KmerHolder) GetIndex(kmer uint64) (int, bool) {
+	this.SortAct()
+	return this.Kmer.GetIndex(kmer)
+}
+
+func (this *KmerHolder) GetByKmer(kmer uint64) (KmerUnit, bool) {
+	this.SortAct()
+	return this.Kmer.GetByKmer(kmer)
+}
+
+func (this *KmerHolder) GetByIndex(i int) KmerUnit {
+	this.SortAct()
+	return this.Kmer.GetByIndex(i)
+}
+
+func (this *KmerHolder) AddSorted(kmer uint64, count uint8) {
+	this.Kmer.AddSorted(kmer, count)
+	this.NumKmers = len(this.Kmer)
+}
+
+func (this *KmerHolder) Clear() {
+	this.Kmer.Clear()
+	this.NumKmers     = len(this.Kmer)
+	this.LastNumKmers = len(this.Kmer)
+}
+
+
+
 
 func (this *KmerHolder) Sort() {
 	if len(this.Kmer) == 0 {
@@ -311,53 +421,14 @@ func (this *KmerHolder) SortAct() {
 	//this.Kmer.PrintLevel(lvlI)
 }
 
-func (this *KmerHolder) Add(kmer uint64) {
-	this.Sort()
-	this.Kmer.Add(kmer, this.LastNumKmers)
-	this.NumKmers = len(this.Kmer)
-}
 
-func (this *KmerHolder) Close() {
-	this.SortAct()
-	//lvlI, _ := logging.LogLevel("INFO")
-	//this.Kmer.PrintLevel(lvlI)
-}
 
-func (this *KmerHolder) HasKmer(kmer uint64) bool {
-	this.SortAct()
-	return this.Kmer.HasKmer(kmer)
-}
 
-func (this *KmerHolder) GetInfo(kmer uint64) (int, KmerUnit, bool) {
-	this.SortAct()
-	return this.Kmer.GetInfo(kmer)
-}
 
-func (this *KmerHolder) GetIndex(kmer uint64) (int, bool) {
-	this.SortAct()
-	return this.Kmer.GetIndex(kmer)
-}
 
-func (this *KmerHolder) GetByKmer(kmer uint64) (KmerUnit, bool) {
-	this.SortAct()
-	return this.Kmer.GetByKmer(kmer)
-}
 
-func (this *KmerHolder) GetByIndex(i int) KmerUnit {
-	this.SortAct()
-	return this.Kmer.GetByIndex(i)
-}
 
-func (this *KmerHolder) AddSorted(kmer uint64, count uint8) {
-	this.Kmer.AddSorted(kmer, count)
-	this.NumKmers = len(this.Kmer)
-}
 
-func (this *KmerHolder) Clear() {
-	this.Kmer.Clear()
-	this.NumKmers     = len(this.Kmer)
-	this.LastNumKmers = len(this.Kmer)
-}
 
 func (this *KmerHolder) ToFile(outFile string, minCount uint8) bool {
 	kio := KmerIO{}
@@ -563,26 +634,3 @@ func (this *KmerHolder) FromFileHandle(kio *KmerIO) bool {
 
 
 
-
-func NewKmerHolder(kmerSize int) *KmerHolder {
-	max_kmer_size := (2 << (uint(kmerSize)*2)) / 2
-	
-	kmer_cap      := max_kmer_size / 100
-	
-	if kmer_cap < min_capacity {
-		kmer_cap = min_capacity
-	}
-	
-	var k KmerHolder     = KmerHolder{}
-	    k.KmerSize       = kmerSize
-	    k.KmerCap        = kmer_cap
-	    k.NumKmers       = 0
-	    k.LastNumKmers   = 0
-	    k.Kmer           = make(KmerDb, 0, k.KmerCap  )
-
-	log.Info(p.Sprintf( "max db size %12d\n", max_kmer_size ))
-	log.Info(p.Sprintf( "kmer size   %12d\n", k.KmerSize    ))
-	log.Info(p.Sprintf( "kmer cap    %12d\n", k.KmerCap     ))
-	
-	return &k
-}

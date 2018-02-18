@@ -13,13 +13,14 @@ type Hist struct {
 func (this *Hist) Add( val uint8 ) {
 	this.Unique++
 	this.Total += uint64(val)
+	//println(val)
 	this.Hist[val]++
 }
 
 func (this *Hist) Clear() {	
 	this.Unique = 0
 	this.Total  = 0
-	this.Hist   = make([]uint64, 254, 254)
+	this.Hist   = make([]uint64, 255, 255)
 }
 
 func (this Hist) String() string {

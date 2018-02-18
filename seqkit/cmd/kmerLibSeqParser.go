@@ -1,5 +1,9 @@
 package cmd
 
+import (
+	"sync"
+)
+
 type FORMAT int
 
 const (
@@ -10,42 +14,61 @@ const (
 type AdderFunc func(uint64)
 
 type KmerParser struct {
-	val       uint64
-	lav       uint64
-	vav       uint64
+	val        uint64
+	lav        uint64
+	vav        uint64
 	
-	cv        uint64
-	cw        uint64
-	ci        uint64
+	cv         uint64
+	cw         uint64
+	ci         uint64
 	
-	curr       int
+	curr        int
 	
-	minLen     int
-	maxLen     int
+	minLen      int
+	maxLen      int
 	
-	Profile   bool
+	Profile    bool
 	
-	Add       AdderFunc
+	Add        AdderFunc
 
 	Converter *Converter
+	wg         sync.WaitGroup
 }
 
 func NewKmerParser(kmerSize, minLen, maxLen int, add AdderFunc) (*KmerParser){
 	c := NewConverter(kmerSize)
 
-    k := KmerParser{0,0,0, 0,0,0, 0, minLen, maxLen, false, add, c}
+    k := KmerParser{0,0,0, 0,0,0, 0, minLen, maxLen, false, add, c, sync.WaitGroup{}}
 
     return &k
 }
 
-func (this *KmerParser) FastQ(seq *[]byte) (s *Stat) {
-    s = this.fast(seq, FASTQ)
-	return
+func (this *KmerParser) Wait() {
+	log.Info("Waiting for conclusion")
+	this.wg.Wait()
+	log.Info("Finished reading")
 }
 
-func (this *KmerParser) FastA(seq *[]byte) (s *Stat) {
-    s = this.fast(seq, FASTA)
-	return
+func (this *KmerParser) FastQ(seq *[]byte, fs func (*Stat)) {
+	this.wg.Add(1)
+	//println("wg.Addding")
+	go func() {
+		defer this.wg.Done()
+		s := this.fast(seq, FASTQ)
+		fs( s )
+		//println("wg.Done")
+	}()
+}
+
+func (this *KmerParser) FastA(seq *[]byte, fs func (*Stat)) {
+	this.wg.Add(1)
+	//println("wg.Addding")
+	go func() {
+		defer this.wg.Done()
+		s := this.fast(seq, FASTA)
+		fs( s )
+		//println("wg.Done")
+	}()
 }
 
 func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {

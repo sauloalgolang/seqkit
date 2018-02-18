@@ -101,15 +101,24 @@ var kmerCmd = &cobra.Command{
 		}
 
 		files          := getFileList(args)
-				
+		
 		var res         = NewKmerHolder(kmerSize)
+		
 		var parser      = NewKmerParser(kmerSize, minLen, maxLen, res.Add)
+		//add := make(chan uint64, config.Threads*3);
+		//var parser      = NewKmerParser(kmerSize, minLen, maxLen, func(v uint64){
+		//	println("adding v", v, "max", config.Threads)
+		//	add <- v
+		//})
+
 		var stats       = NewKmerReadStat()
 		
 		if profile {
-			log.Info( "profile" )
+			log.Info( "profiling" )
 			parser.Profile = profile
 		}
+
+		log.Info( "threads", config.Threads )
 
 		//checkError(fmt.Errorf("done"))
 		
@@ -138,16 +147,23 @@ var kmerCmd = &cobra.Command{
 				}
 				
 				if fastxReader.IsFastq {
-					config.LineWidth  = 0
-					stats.AddSS(file, "FQ"       , parser.FastQ(&record.Seq.Seq))
+					config.LineWidth = 0
+					parser.FastQ(&record.Seq.Seq, func(s *Stat) {stats.AddSS(file, "FQ", s)})
+					//stats.AddSS(file, "FQ"       , parser.FastQ(&record.Seq.Seq))
 				} else {
-					stats.AddSB(file, record.Name, parser.FastA(&record.Seq.Seq))
+					log.Info("Parsing", string(record.Name))
+					parser.FastA(&record.Seq.Seq, func(s *Stat) {stats.AddSB(file, record.Name, s)})
+					//stats.AddSB(file, record.Name, parser.FastA(&record.Seq.Seq))
 				}
 			}
 				
 			config.LineWidth = lineWidth
 		}
 
+		//res.Listen(add)
+
+		parser.Wait()
+		
 		log.Infof("Closing")
 		res.Close()
 		//log.Infof("Printing")
