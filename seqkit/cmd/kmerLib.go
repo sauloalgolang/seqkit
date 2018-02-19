@@ -69,7 +69,7 @@ func NewKmerHolder(kmerSize, minLen, maxLen int, profile bool) (k *KmerHolder) {
 	log.Info(p.Sprintf( "kmer size   %12d\n", k.KmerSize    ))
 	log.Info(p.Sprintf( "kmer cap    %12d\n", k.KmerCap     ))
 	
-	return &k
+	return k
 }
 
 
