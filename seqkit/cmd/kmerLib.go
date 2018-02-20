@@ -121,8 +121,9 @@ func (this *KmerHolder) ParseFastA(key1 string, key2 []byte, seq *[]byte) {
 	go func() {
 		defer this.wg.Done()
 
+		k := NewKmerHolder(this.KmerSize, this.MinLen, this.MaxLen, this.Profile)
 		//p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, this.Add)
-		p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, func(uint64) {})
+		p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, k.Add)
 		s := p.fast(seq, FASTA)
 
 		this.mux.Lock()

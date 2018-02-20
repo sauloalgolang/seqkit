@@ -97,6 +97,7 @@ sys     0m12.422s
 
 
 
+# SINGLE KMER HOLDER
 -k7 -j 1
 num kmers:        8,192 last kmer:        8,192 len kmer:        8,192 cap kmer:    1,000,000
 real    3m46.348s
@@ -121,6 +122,33 @@ real    4m30.807s
 user    6m14.781s
 sys     0m12.078s
 
+
+
+# MULTIPLE KMER HOLDER
+-k7 -j 1
+real    3m35.807s
+user    3m34.609s
+sys     0m0.688s
+
+-k7 -j 2
+real    2m5.233s
+user    3m56.344s
+sys     0m1.219s
+
+-k7 -j 4
+real    1m19.889s
+user    4m34.484s
+sys     0m2.063s
+
+-k7 -j 8
+real    1m6.913s
+user    5m9.625s
+sys     0m3.078s
+
+-k7 -j 16
+real    1m2.620s
+user    5m5.813s
+sys     0m3.469s
 
 """
 import sys

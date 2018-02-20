@@ -2,4 +2,4 @@
 
 . enable.sh
 
-go build -v
+go build -i -v
