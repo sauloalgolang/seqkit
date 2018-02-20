@@ -30,7 +30,7 @@ func NewKmerIO() (k *KmerIO) {
 
 func (this *KmerIO) initReader(inFh *xopen.Reader) {
 	if this.mode != CLOSED {
-		log.Panic("reading on open file")
+		Panic("reading on open file")
 	}
 	this.buf        = make([]byte, binary.MaxVarintLen64)
 	this.InFh       = inFh
@@ -39,7 +39,7 @@ func (this *KmerIO) initReader(inFh *xopen.Reader) {
 
 func (this *KmerIO) initWriter(outFh *xopen.Writer) {
 	if this.mode != CLOSED {
-		log.Panic("writing on open file")
+		Panic("writing on open file")
 	}
 	this.buf        = make([]byte, binary.MaxVarintLen64)
 	this.OutFh      = outFh
@@ -68,17 +68,17 @@ func (this *KmerIO) openWriter(outFile string) {
 func (this *KmerIO) CheckMode(mode FILEMODE) {
 	if mode == WRITE {
 		if this.mode == CLOSED {
-			log.Panic("writing on closed file")
+			Panic("writing on closed file")
 		}
 		if this.mode == READ {
-			log.Panic("writing on reading file")
+			Panic("writing on reading file")
 		}
 	} else if mode == READ {
 		if this.mode == CLOSED {
-			log.Panic("reading on closed file")
+			Panic("reading on closed file")
 		}
 		if this.mode == WRITE {
-			log.Panic("reading on writing file")
+			Panic("reading on writing file")
 		}
 	}
 }
@@ -96,7 +96,7 @@ func (this *KmerIO) Close() {
     } else if this.mode == READ {
     	this.InFh.Close()
     } else {
-		log.Panic("closing already closed file")        
+		Panic("closing already closed file")        
     }
 }
 
@@ -114,7 +114,7 @@ func (this *KmerIO) ReadUint8(res *uint8) (bool) {
 		if err == io.EOF {
 			return false
 		} else {
-			log.Panic("binary.Read failed:", err)
+			Panic("binary.Read failed:", err)
 		}
 	}
 	
@@ -130,7 +130,7 @@ func (this *KmerIO) ReadUint64(res *uint64) (bool) {
 		if err == io.EOF {
 			return false
 		} else {
-			log.Panic("binary.Read failed:", err)
+			Panic("binary.Read failed:", err)
 		}
 	}
 	
@@ -146,7 +146,7 @@ func (this *KmerIO) ReadUint64V() (uint64, bool) {
 		if err == io.EOF {
 			return 0, false
 		} else {
-			log.Panic("binary.Read failed:", err)
+			Panic("binary.Read failed:", err)
 		}
 	}
 	
@@ -159,12 +159,12 @@ func (this *KmerIO) ReadUint64V() (uint64, bool) {
 func (this *KmerIO) WriteUint8(x uint8) {
 	this.CheckMode(WRITE)
 
-	//fmt.Printf("%d %d %x\n", x, n, this.buf[:n])
+	//Printf("%d %d %x\n", x, n, this.buf[:n])
 
 	err := binary.Write(this.OutFh, binary.LittleEndian, x)
 
 	if err != nil {
-		log.Panic("binary.Write failed:", err)
+		Panic("binary.Write failed:", err)
 	}
 }
 
@@ -176,7 +176,7 @@ func (this *KmerIO) WriteUint64(x uint64) {
 	err := binary.Write(this.OutFh, binary.LittleEndian, x)
 
 	if err != nil {
-		log.Panic("binary.Write failed:", err)
+		Panic("binary.Write failed:", err)
 	}
 }
 
@@ -189,7 +189,7 @@ func (this *KmerIO) WriteUint64V(x uint64) {
 	
 	err := binary.Write(this.OutFh, binary.LittleEndian, this.buf[:n])
 	if err != nil {
-		log.Panic("binary.Write failed:", err)
+		Panic("binary.Write failed:", err)
 	}
 }
 
@@ -203,7 +203,7 @@ func (this *KmerIO) WriteStruct(x interface{}) {
 	this.CheckMode(WRITE)
 	err := binary.Write(this.OutFh, binary.LittleEndian, x)
 	if err != nil {
-		log.Panic("binary.Write failed:", err)
+		Panic("binary.Write failed:", err)
 	}
 }
 
@@ -211,6 +211,6 @@ func (this *KmerIO) ReadStruct(x interface{}) {
 	this.CheckMode(READ)
 	err := binary.Read(this.InFh, binary.LittleEndian, x)
 	if err != nil {
-		log.Panic("binary.Write failed:", err)
+		Panic("binary.Write failed:", err)
 	}
 }

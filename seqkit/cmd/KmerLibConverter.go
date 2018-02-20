@@ -20,13 +20,13 @@ func (conv Converter) NumToSeq(kmer uint64) string {
 		q = p >> (uint(i)*2)
 		c = conv.cHARS[q]
 		
-		//fmt.Printf( "i %3d - kmer %010b - a %010b - p %010b - q %010b - c %s\n"  , i, kmer, conv.table[i], p, q, string(c) )
-		//fmt.Printf( "        kmer % 10d - a % 10d - p % 10d - q % 10d - c %s\n\n",    kmer, conv.table[i], p, q, string(c) )
+		//Infof( "i %3d - kmer %010b - a %010b - p %010b - q %010b - c %s\n"  , i, kmer, conv.table[i], p, q, string(c) )
+		//Infof( "        kmer % 10d - a % 10d - p % 10d - q % 10d - c %s\n\n",    kmer, conv.table[i], p, q, string(c) )
 		
 		seq[uint(conv.KmerSize)-uint(i)-1] = c
 	}
 	
-	//println("SEQ", string(seq))
+	//Info("SEQ", string(seq))
 	
 	return string(seq)
 }
@@ -48,14 +48,14 @@ func NewConverter(kmerSize int) *Converter {
 	}
 
 	for i, b := range conv.cHARS {
-		//print( "CHARS i: ", i, " b: ", b, "\n" );
+		//Info( "CHARS i: ", i, " b: ", b, "\n" );
 		conv.Vals[uint8(b)][0] =    uint64(i)
 		conv.Vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
 		conv.Vals[uint8(b)][2] = 1
 	}
 
 	for i, b := range conv.chars {
-		//print( "chars i: ", i, " b: ", b, "\n" );
+		//Info( "chars i: ", i, " b: ", b, "\n" );
 		conv.Vals[uint8(b)][0] =    uint64(i)
 		conv.Vals[uint8(b)][1] = (3-uint64(i)) << (2*(uint64(kmerSize)-1))
 		conv.Vals[uint8(b)][2] = 1
@@ -67,18 +67,18 @@ func NewConverter(kmerSize int) *Converter {
 	
 	//for i:=uint64(0); i < 1024; i++ {
 	//	seq := conv.NumToSeq(i)
-	//	println("I", i, "seq", seq)
+	//	Info("I", i, "seq", seq)
 	//}
 	
-	//log.Panic("done")
+	//Panic("done")
 	
-	//print( "cleaner ", cleaner, "\n")
-	//print( "res     ",     res, "\n")
+	//Info( "cleaner ", cleaner, "\n")
+	//Info( "res     ",     res, "\n")
 
 	//for j, b := range vals {
-	//	//fmt.Printf( "vals i: %3d b: %3d (%010b)\n", i, b, b );
+	//	//Infof( "vals i: %3d b: %3d (%010b)\n", i, b, b );
 	//	v, w, i := b[0], b[1], b[2]
-	//	fmt.Printf( "vals i: %3d v: %3d (%010b) w: %3d (%010b) i: %d\n", j, v, v, w, w, i );
+	//	Infof( "vals i: %3d v: %3d (%010b) w: %3d (%010b) i: %d\n", j, v, v, w, w, i );
 	//}
 	
 	return &conv

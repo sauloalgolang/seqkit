@@ -1,9 +1,5 @@
 package cmd
 
-import (
-	"bytes"
-)
-
 type Hist struct {
 	Unique   uint64
 	Total    uint64
@@ -19,7 +15,7 @@ func NewHist() (h *Hist) {
 func (this *Hist) Add( val uint8 ) {
 	this.Unique++
 	this.Total += uint64(val)
-	//println(val)
+	//Info(val)
 	this.Hist[val]++
 }
 
@@ -30,10 +26,10 @@ func (this *Hist) Clear() {
 }
 
 func (this Hist) String() string {
-	var buffer bytes.Buffer
+	var buffer StringBuffer
 
-	buffer.WriteString(p.Sprintf("Unique Kmers: %12d\n", this.Unique))
-	buffer.WriteString(p.Sprintf("Total  Kmers: %12d\n", this.Total ))
+	buffer.WriteStringf("Unique Kmers: %12d\n", this.Unique)
+	buffer.WriteStringf("Total  Kmers: %12d\n", this.Total )
 
 	i := len(this.Hist)-1
 	for ; i >= 0; i-- {
@@ -45,12 +41,12 @@ func (this Hist) String() string {
 	i++
 	
 	for j:=1; j<i; j++ {
-		buffer.WriteString(p.Sprintf(" %03d %12d\n", j, this.Hist[j] ))
+		buffer.WriteStringf(" %03d %12d\n", j, this.Hist[j] )
 	}
 	
 	return buffer.String()
 }
 
 func (this Hist) Print() {
-	log.Info(p.Sprintf("\n%v", this))
+	Infof("\n%v", this)
 }

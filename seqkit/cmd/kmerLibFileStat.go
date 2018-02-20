@@ -1,9 +1,5 @@
 package cmd
 
-import (
-	"bytes"
-)
-
 type StatMap    map[string]*Stat
 type StatMapMap map[string]StatMap
 
@@ -40,21 +36,21 @@ func (this *Stat) Sum( that Stat ) {
 }
 
 func (this Stat) String() string {
-	var buffer bytes.Buffer
+	var buffer StringBuffer
 	
-	buffer.WriteString(p.Sprintf("  Size     : %12d\n", this.Size     ))
-	buffer.WriteString(p.Sprintf("  Sequences: %12d\n", this.Sequences))
-	buffer.WriteString(p.Sprintf("  Chars    : %12d\n", this.Chars    ))
-	buffer.WriteString(p.Sprintf("  Resets   : %12d\n", this.Resets   ))
-	buffer.WriteString(p.Sprintf("  Valids   : %12d\n", this.Valids   ))
-	buffer.WriteString(p.Sprintf("  Counted  : %12d\n", this.Counted  ))
-	buffer.WriteString(p.Sprintf("  Skipped  : %12d\n", this.Skipped  ))
+	buffer.WriteStringf("  Size     : %12d\n", this.Size     )
+	buffer.WriteStringf("  Sequences: %12d\n", this.Sequences)
+	buffer.WriteStringf("  Chars    : %12d\n", this.Chars    )
+	buffer.WriteStringf("  Resets   : %12d\n", this.Resets   )
+	buffer.WriteStringf("  Valids   : %12d\n", this.Valids   )
+	buffer.WriteStringf("  Counted  : %12d\n", this.Counted  )
+	buffer.WriteStringf("  Skipped  : %12d\n", this.Skipped  )
 	
 	return buffer.String()
 }
 
 func (this Stat) Print() {
-	log.Info(p.Sprintf("%v", this))
+	Infof("%v", this)
 }
 
 
@@ -93,7 +89,7 @@ func (this *KmerReadStat) Add(key1 interface{}, key2 interface{}, val Stat) { //
 		case []byte:
 			k1 = string(key1)
 		default:
-			panic("unknown key format")
+			Panic("unknown key format")
 	}
 	
 	switch key2 := key2.(type) {
@@ -102,7 +98,7 @@ func (this *KmerReadStat) Add(key1 interface{}, key2 interface{}, val Stat) { //
 		case []byte:
 			k2 = string(key2)
 		default:
-			panic("unknown key format")
+			Panic("unknown key format")
 	}
 	
 	 this.add(k1, k2, val)
@@ -128,7 +124,7 @@ func (this *KmerReadStat) add(key1, key2 string, val Stat) {
 }
 
 func (this KmerReadStat) String() string {
-	var buffer bytes.Buffer
+	var buffer StringBuffer
 	
 	statAll     := NewStat()
 	numAllFiles := len(this.Key1)
@@ -138,8 +134,8 @@ func (this KmerReadStat) String() string {
 		statFile    := NewStat()
 		
 		for _, seqName := range this.Key2[fileName] {
-			buffer.WriteString(p.Sprintf("File Name %s Seq Name %s\n", fileName, seqName))
-			buffer.WriteString(p.Sprintf("%v", *this.Dict[fileName][seqName]))
+			buffer.WriteStringf("File Name %s Seq Name %s\n", fileName, seqName)
+			buffer.WriteStringf("%v", *this.Dict[fileName][seqName])
 			
 			statFile.Sum(*this.Dict[fileName][seqName])
 			statAll .Sum(*this.Dict[fileName][seqName])
@@ -148,17 +144,17 @@ func (this KmerReadStat) String() string {
 		numSeqsFile := len(this.Key2[fileName])
 		numAllSeqs  += numSeqsFile
 
-		buffer.WriteString(p.Sprintf("File Name %s :: %12d Files\n", fileName, numSeqsFile))
-		buffer.WriteString(p.Sprintf("%v", statFile))
+		buffer.WriteStringf("File Name %s :: %12d Files\n", fileName, numSeqsFile)
+		buffer.WriteStringf("%v", statFile)
 	}
 
 	
-	buffer.WriteString(p.Sprintf("All :: %12d Files :: %12d Sequences\n", numAllFiles, numAllSeqs))
-	buffer.WriteString(p.Sprintf("%v", statAll))
+	buffer.WriteStringf("All :: %12d Files :: %12d Sequences\n", numAllFiles, numAllSeqs)
+	buffer.WriteStringf("%v", statAll)
 	
 	return buffer.String()
 }
 
 func (this KmerReadStat) Print() {
-	log.Info(p.Sprintf("\n%v", this))
+	Infof("\n%v", this)
 }

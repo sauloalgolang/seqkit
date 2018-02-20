@@ -96,7 +96,7 @@ var kmerCmd = &cobra.Command{
 		
 		
 		if !(alphabet == nil || alphabet == seq.Unlimit) {
-			log.Info("when flag -t (--seq-type) given, flag -v (--validate-seq) is automatically switched on")
+			Info("when flag -t (--seq-type) given, flag -v (--validate-seq) is automatically switched on")
 			seq.ValidateSeq = true
 		}
 
@@ -111,7 +111,7 @@ var kmerCmd = &cobra.Command{
 		//})
 		
 
-		log.Info( "threads", config.Threads )
+		Info( "threads", config.Threads )
 
 		//checkError(fmt.Errorf("done"))
 		
@@ -144,7 +144,7 @@ var kmerCmd = &cobra.Command{
 					holder.ParseFastQ(file, "FQ", &record.Seq.Seq)
 					//stats.AddSS(file, "FQ"       , parser.FastQ(&record.Seq.Seq))
 				} else {
-					log.Info("Parsing", string(record.Name))
+					Info("Parsing", string(record.Name))
 					holder.ParseFastA(file, record.Name, &record.Seq.Seq)
 					//stats.AddSB(file, record.Name, parser.FastA(&record.Seq.Seq))
 				}
@@ -155,29 +155,29 @@ var kmerCmd = &cobra.Command{
 
 		holder.Wait()
 		
-		log.Infof("Closing")
+		Info("Closing")
 		holder.Close()
-		//log.Infof("Printing")
+		//Infof("Printing")
 		//holder.Print()
 		
-		log.Infof("Generating Histogram")
+		Info("Generating Histogram")
 		hist := NewHist()
 		for i:=0; i < holder.NumKmers; i++ {
 			kmer  := holder.GetByIndex(i)
-			//fmt.Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
+			//Printf( " i: %12d kmer: %12d count: %3d seq: %s\n", i, kmer.Kmer, kmer.Count, converter.NumToSeq(kmer.Kmer));
 			hist.Add(kmer.Count)
 		}
-		log.Infof("Printing Histogram")
+		Infof("Printing Histogram")
 		hist.Print()
 
-		log.Infof("Printing Statistics")
+		Infof("Printing Statistics")
 		holder.PrintStats()
 		
-		log.Info("Saving to: ", outFile, "\n")
+		Info("Saving to: ", outFile, "\n")
 
 		holder.ToFile(outFile, minCount)
 
-		log.Info("Finished saving\n")
+		Info("Finished saving\n")
 
 		//outfh, err := xopen.Wopen(outFile)
 		//checkError(err)
@@ -189,9 +189,9 @@ var kmerCmd = &cobra.Command{
 		//outfh.Flush()
 		//outfh.Close()
 
-		log.Info("Reading from: ", outFile, "\n")
+		Info("Reading from: ", outFile, "\n")
 		holder.FromFile(outFile)
-		log.Info("Finished reading\n")
+		Info("Finished reading\n")
 	},
 }
 

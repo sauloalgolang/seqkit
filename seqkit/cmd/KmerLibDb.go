@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"sort"
-	"github.com/shenwei356/go-logging"
 )
 
 type KmerUnit struct {
@@ -18,15 +17,14 @@ func NewKmerDB() (k KmerDb) {
 }
 
 func (this *KmerDb) Print() {
-	lvl, _ := logging.LogLevel("DEBUG")
-	this.PrintLevel(lvl)
+	this.PrintLevel("DEBUG")
 }
 
-func (this *KmerDb) PrintLevel(lvl logging.Level) {
-	if logging.GetLevel("seqkit") >= lvl {
+func (this *KmerDb) PrintLevel(lvl string) {
+	if IsLogLevelValid(lvl) {
 		for i,j := range *this {
-			//log.Debugf(p.Sprintf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count ))
-			p.Printf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count )
+			//Debugf(p.Sprintf( "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count ))
+			PrintLevelf( lvl, "  %12d :: %12d -> %3d\n", i, j.Kmer, j.Count )
 		}
 	}
 }
@@ -68,7 +66,7 @@ func (this *KmerDb) GetByIndex(i int) KmerUnit {
 }
 
 func (this *KmerDb) Add(kmer uint64, LastKmerLen int) {
-	//log.Debugf("KmerDb    :: Add %3d %p", kmer, (*this))
+	//Debugf("KmerDb    :: Add %3d %p", kmer, (*this))
 
 	if LastKmerLen == 0 {
 		*this = append(*this, KmerUnit{kmer, 1})
@@ -83,57 +81,57 @@ func (this *KmerDb) Add(kmer uint64, LastKmerLen int) {
 		}
 	}
 
-	//log.Debugf("KmerDb    :: Add %d %p", kmer, (*this))
+	//Debugf("KmerDb    :: Add %d %p", kmer, (*this))
 }
 
 func (this *KmerDb) AddSorted(kmer uint64, count uint8) {
-	log.Debugf("KmerDb    :: AddSorted %12d %3d %p", kmer, count, (*this))
+	Debugf("KmerDb    :: AddSorted %12d %3d %p", kmer, count, (*this))
 
 	if (cap(*this)) < min_capacity {
-		log.Debugf("KmerDb    :: AddSorted :: creating. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), min_capacity, (*this))
+		Debugf("KmerDb    :: AddSorted :: creating. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), min_capacity, (*this))
 		(*this) = make(KmerDb, 0, min_capacity)
 	} else {
 		if len(*this) >= ( 9 * (cap(*this) / 10)) {
 			newCap := (cap(*this) / 4 * 6)
-			log.Debugf("KmerDb    :: AddSorted :: expanding. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), newCap, (*this))
+			Debugf("KmerDb    :: AddSorted :: expanding. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), newCap, (*this))
 			t := make(KmerDb, len(*this), newCap)
 			copy(t, *this)
 			(*this) = t
-			log.Debugf("KmerDb    :: AddSorted :: expanding. len %12d cap %12d         %12s - %p", len(*this), cap(*this), "", (*this))
+			Debugf("KmerDb    :: AddSorted :: expanding. len %12d cap %12d         %12s - %p", len(*this), cap(*this), "", (*this))
 		}
 	}
 	
 	*this = append(*this, KmerUnit{kmer, count})
 	
-	log.Debugf("KmerDb    :: AddSorted %12d %3d %p - added", kmer, count, (*this))
+	Debugf("KmerDb    :: AddSorted %12d %3d %p - added", kmer, count, (*this))
 }
 
 func (this *KmerDb) Clear() {
-	log.Debugf("KmerDb    :: Clear %p LEN %d CAP %d", *this, len(*this), cap(*this))
+	Debugf("KmerDb    :: Clear %p LEN %d CAP %d", *this, len(*this), cap(*this))
 	*this = (*this)[:0]
-	log.Debugf("KmerDb    :: Clear %p LEN %d CAP %d", *this, len(*this), cap(*this))
+	Debugf("KmerDb    :: Clear %p LEN %d CAP %d", *this, len(*this), cap(*this))
 }
 
 func (this *KmerDb) isEqual(that *KmerDb) (bool, string) {
-	log.Debugf("KmerDb    :: isEqual", *this, len(*this), cap(*this), *that, len(*that), cap(*that))
+	Debugf("KmerDb    :: isEqual", *this, len(*this), cap(*this), *that, len(*that), cap(*that))
 
 	if len(*this) != len(*that) {
-		log.Debugf("KmerDb    :: isEqual :: Sizes differ")
+		Debugf("KmerDb    :: isEqual :: Sizes differ")
 		return false, "Sizes differ"
 	}
 	
 	for i,j := range *this {
 		if j.Kmer != (*that)[i].Kmer {
-			log.Debugf("KmerDb    :: isEqual :: Kmer out of order")
+			Debugf("KmerDb    :: isEqual :: Kmer out of order")
 			return false, "Kmer out of order"
 		}
 		if j.Count != (*that)[i].Count {
-			log.Debugf("KmerDb    :: isEqual :: Kmer count differ")
+			Debugf("KmerDb    :: isEqual :: Kmer count differ")
 			return false, "Kmer count differ"
 		}
 	}
 
-	log.Debugf("KmerDb    :: isEqual :: OK")
+	Debugf("KmerDb    :: isEqual :: OK")
 	return true, "OK"
 }
 

@@ -92,7 +92,7 @@ func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
 	s.Sequences += 1
 
     for _, b := range (*seq) {
-        //fmt.Printf( "SEQ i: %v b: %v c: %c\n", i, b, b )
+        //Infof( "SEQ i: %v b: %v c: %c\n", i, b, b )
 
         s.Chars += 1
 
@@ -103,8 +103,8 @@ func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
         this.cv, this.cw, this.ci  = this.Converter.Vals[ b ][0], this.Converter.Vals[ b ][1], this.Converter.Vals[ b ][2]
         
         //if count > 119200 {
-        //fmt.Printf( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
-        //fmt.Printf( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
+        //Infof( "v       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cv, cv, string(b), curr, count, valids, skipped, resets )
+        //Infof( "w       %12d - %010b - CHAR %s - CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", cw, cw, " "      , curr, count, valids, skipped, resets )
         //}
         
         if this.ci == 0 {
@@ -128,8 +128,8 @@ func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
             s.Valids  += 1
 
             //if count > 119200 {
-            //fmt.Printf( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
-            //fmt.Printf( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
+            //Infof( "val     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", val, val, curr, count, valids, skipped, resets )
+            //Infof( "lav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d\n", lav, lav, curr, count, valids, skipped, resets )
             //}
             
             if this.curr == this.Converter.KmerSize - 1 {
@@ -143,15 +143,15 @@ func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
                 s.Counted += 1
                     
                 //if count > 119200 {
-                //fmt.Printf( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
+                //Infof( "vav     %12d - %010b            CURR %d COUNT %12d VALIDS %12d SKIPPED %12d RESETS %12d RES %12d\n", vav, vav, curr, count, valids, skipped, resets, res[vav] )
                 //}
             } else {
-                //log.Info(".", count)
+                //Info(".", count)
                 this.curr += 1
                 s.Skipped += 1
            }
             //if count > 119200 {
-            //log.Info ()
+            //Info ()
             //}
         }
     }
