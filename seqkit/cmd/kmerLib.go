@@ -101,6 +101,10 @@ func (this *KmerHolder) Add(kmer uint64, count uint8) {
 	this.NumKmers = len(this.Kmer)
 }
 
+func (this *KmerHolder) Merge(that *KmerHolder) {
+	
+}
+
 func (this *KmerHolder) ParseFastQ(key1 string, key2 string, seq *[]byte) {
 	// not necessary but why not?
 	this.wg.Add(1)
@@ -126,6 +130,7 @@ func (this *KmerHolder) ParseFastA(key1 string, key2 []byte, seq *[]byte) {
 
 		this.mux.Lock()
 		defer this.mux.Unlock()
+		this.Merge(k)
 		this.ReadStatsG.AddSB(key1, key2, *s)
 	}()
 }
