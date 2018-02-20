@@ -102,7 +102,16 @@ func (this *KmerHolder) Add(kmer uint64, count uint8) {
 }
 
 func (this *KmerHolder) Merge(that *KmerHolder) {
+	this.mux.Lock()
+	defer this.mux.Unlock()
+
+	this.Sort()
+	that.Sort()
+	that.Close()
 	
+	this.KmerCount += that.KmerCount
+	this.Kmer.Merge(&that.Kmer, this.LastNumKmers)
+	this.NumKmers = len(this.Kmer)
 }
 
 func (this *KmerHolder) ParseFastQ(key1 string, key2 string, seq *[]byte) {

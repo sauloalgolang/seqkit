@@ -65,6 +65,10 @@ func (this *KmerDb) GetByIndex(i int) KmerUnit {
 	return (*this)[i]
 }
 
+func (this *KmerDb) Merge(that *KmerDb, LastKmerLen int) {
+	//TODO: IMPLEMENT
+}
+
 func (this *KmerDb) Add(kmer uint64, count uint8, LastKmerLen int) {
 	//Debugf("KmerDb    :: Add %3d %p", kmer, (*this))
 
