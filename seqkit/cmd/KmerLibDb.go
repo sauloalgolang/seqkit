@@ -65,19 +65,19 @@ func (this *KmerDb) GetByIndex(i int) KmerUnit {
 	return (*this)[i]
 }
 
-func (this *KmerDb) Add(kmer uint64, LastKmerLen int) {
+func (this *KmerDb) Add(kmer uint64, count uint8, LastKmerLen int) {
 	//Debugf("KmerDb    :: Add %3d %p", kmer, (*this))
 
 	if LastKmerLen == 0 {
-		*this = append(*this, KmerUnit{kmer, 1})
+		*this = append(*this, KmerUnit{kmer, count})
 	} else {
 		t   := (*this)[:LastKmerLen]
 		i,b := t.GetIndex(kmer)
 
 		if b {
-			addToInt8( &(*this)[i].Count, 1 )
+			addToInt8( &(*this)[i].Count, count )
 		} else {
-			*this = append(*this, KmerUnit{kmer, 1})
+			*this = append(*this, KmerUnit{kmer, count})
 		}
 	}
 

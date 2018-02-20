@@ -71,7 +71,6 @@ func NewKmerHolder(kmerSize, minLen, maxLen int, profile bool) (k *KmerHolder) {
 	return k
 }
 
-
 func (this *KmerHolder) Print() {	
 	Debugf( "kmerSize     %12d\n", this.KmerSize  )
 	Debugf( "NumKmers     %12d\n", this.NumKmers  )
@@ -81,7 +80,7 @@ func (this *KmerHolder) Print() {
 	this.Kmer.Print()
 }
 
-func (this *KmerHolder) Add(kmer uint64) {
+func (this *KmerHolder) Add(kmer uint64, count uint8) {
 	this.mux.Lock()
 	defer this.mux.Unlock()
 
@@ -98,7 +97,7 @@ func (this *KmerHolder) Add(kmer uint64) {
 	}
 	
 	this.Sort()
-	this.Kmer.Add(kmer, this.LastNumKmers)
+	this.Kmer.Add(kmer, count, this.LastNumKmers)
 	this.NumKmers = len(this.Kmer)
 }
 

@@ -7,7 +7,7 @@ const (
 	FASTQ
 )
 
-type AdderFunc func(uint64)
+type AdderFunc func(uint64, uint8)
 
 type KmerParser struct {
 	val        uint64
@@ -139,7 +139,7 @@ func (this *KmerParser) fast(seq *[]byte, fmt FORMAT) (s *Stat) {
                     this.vav = this.lav
                 }
                 
-                this.add(this.vav)
+                this.add(this.vav, 1)
                 s.Counted += 1
                     
                 //if count > 119200 {
