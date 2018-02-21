@@ -1,12 +1,5 @@
 package cmd
 
-type FORMAT int
-
-const (
-	FASTA FORMAT = iota
-	FASTQ
-)
-
 type AdderFunc func(uint64, uint8)
 
 type KmerParser struct {

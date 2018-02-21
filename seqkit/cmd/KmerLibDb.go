@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"sort"
+	"runtime"
 )
 
 type KmerUnit struct {
@@ -38,15 +39,15 @@ func (this *KmerDb) HasKmer(kmer uint64) bool {
 	return b
 }
 
-func (this *KmerDb) GetInfo(kmer uint64) (int, KmerUnit, bool) {
+func (this *KmerDb) GetInfo(kmer uint64) (int, *KmerUnit, bool) {
 	i := this.Search(kmer)
-	if i == len(*this) {
-		return 0, KmerUnit{0, 0}, false
+	if i >= len(*this) {
+		return 0, &KmerUnit{0, 0}, false
 	} else {
-		if (*this)[i].Kmer != kmer {
-			return 0, KmerUnit{0, 0}, false
+		if (*this)[i].Kmer == kmer {
+			return i, &(*this)[i]    , true
 		} else {
-			return i, (*this)[i]    , true
+			return 0, &KmerUnit{0, 0}, false
 		}
 	}
 }
@@ -56,36 +57,121 @@ func (this *KmerDb) GetIndex(kmer uint64) (int, bool) {
 	return i, b
 }
 
-func (this *KmerDb) GetByKmer(kmer uint64) (KmerUnit, bool) {
+func (this *KmerDb) GetByKmer(kmer uint64) (*KmerUnit, bool) {
 	_, k, b := this.GetInfo(kmer)
 	return k, b
 }
 
-func (this *KmerDb) GetByIndex(i int) KmerUnit {
-	return (*this)[i]
+func (this *KmerDb) GetByIndex(i int) *KmerUnit {
+	return &(*this)[i]
 }
 
 func (this *KmerDb) Merge(that *KmerDb, LastKmerLen int) {
-	//TODO: IMPLEMENT
+	Info("KmerDb :: Merging")
+	
+	if len(*this) == 0 {
+		Info("KmerDb :: Merging :: first - just copying ", len(*this), len(*that))
+		this.Replace(that)
+		Info("KmerDb :: Merging :: first - copied ", len(*this), len(*that))
+	} else {
+		Info("KmerDb :: Merging :: joining ", len(*this), len(*that))
+		var pos    int  = 0
+		var lkp    int  = 0
+		var index  int  = 0
+		var found  bool = false
+		var src   *KmerUnit
+
+		for pos = 0; pos < len(*that); pos++ {
+			src = &(*that)[pos]
+			
+			index, found = this.AddWithKnowledge(src.Kmer, src.Count, LastKmerLen, lkp)
+			
+			//println("pos ", pos, " kmer ", src.Kmer, " count ", src.Count, " LastKmerLen ", LastKmerLen, " lkp ", lkp, " index ", index, " found ", found)
+			
+			if found {
+				//println("found ", (*this)[index].Kmer)
+				lkp = index + 1
+			}
+		}
+		Info("KmerDb :: Merging :: joined ", len(*this), len(*that))
+	}
+	Info("KmerDb :: Merged")
 }
 
 func (this *KmerDb) Add(kmer uint64, count uint8, LastKmerLen int) {
 	//Debugf("KmerDb    :: Add %3d %p", kmer, (*this))
+	this.AddWithKnowledge(kmer, count, LastKmerLen, 0)
+}
 
+func (this *KmerDb) AddWithKnowledge(kmer uint64, count uint8, LastKmerLen int, lastKnownPlace int) (int, bool) {
 	if LastKmerLen == 0 {
-		*this = append(*this, KmerUnit{kmer, count})
+		print("N")
+		this.Append(kmer, count)
+		return 0, false
 	} else {
-		t   := (*this)[:LastKmerLen]
-		i,b := t.GetIndex(kmer)
+		t           := (*this)[lastKnownPlace:LastKmerLen]
+		index,found := t.GetIndex(kmer)
 
-		if b {
-			addToInt8( &(*this)[i].Count, count )
+		if found {
+			print("S")
+			addToInt8( &(*this)[lastKnownPlace+index].Count, count )
 		} else {
-			*this = append(*this, KmerUnit{kmer, count})
+			print("A")
+			this.Append(kmer, count)
 		}
+		
+		return lastKnownPlace+index,found
 	}
-
 	//Debugf("KmerDb    :: Add %d %p", kmer, (*this))
+}
+
+func (this *KmerDb) Append(kmer uint64, count uint8) {
+	if this.Is90Percent() {
+		this.Extend()
+	}
+	*this = append(*this, KmerUnit{kmer, count})
+}
+
+func (this *KmerDb) Replace(that *KmerDb) {
+	Info("replacing")
+	t := make(KmerDb, len(*that), cap(*that)+max_capacity)
+	copy(t, *that)
+	(*this) = t
+	Info("replaced. running gc")
+	runtime.GC()
+	Info("replaced. running gc finished")
+}
+
+func (this *KmerDb) Extend() {
+	Info("extending ", len(*this), cap(*this))
+	
+	newSize := len(*this)
+	newCap  := ((cap(*this) / 4) * 6) //50%
+
+	if newCap - cap(*this) > max_capacity {
+		newCap = cap(*this) + max_capacity
+	}
+		
+	t := make(KmerDb, newSize, newCap)
+	copy(t, *this)
+	(*this) = t
+
+	Info("extended  ", len(*this), cap(*this))
+	Info("extended. running  gc")
+
+	runtime.GC()
+
+	Info("extended. running  gc finished")
+}
+
+func (this *KmerDb) Is80Percent() (iaf bool) {
+	iaf = len(*this) >= ( (cap(*this) / 10) * 8 )
+	return
+}
+
+func (this *KmerDb) Is90Percent() (iaf bool) {
+	iaf = len(*this) >= ( (cap(*this) / 10) * 9 )
+	return
 }
 
 func (this *KmerDb) AddSorted(kmer uint64, count uint8) {
@@ -97,6 +183,11 @@ func (this *KmerDb) AddSorted(kmer uint64, count uint8) {
 	} else {
 		if len(*this) >= ( 9 * (cap(*this) / 10)) {
 			newCap := (cap(*this) / 4 * 6)
+			
+			if newCap - cap(*this) > max_capacity {
+				newCap = cap(*this) + max_capacity
+			}
+			
 			Debugf("KmerDb    :: AddSorted :: expanding. len %12d cap %12d new cap %12d - %p", len(*this), cap(*this), newCap, (*this))
 			t := make(KmerDb, len(*this), newCap)
 			copy(t, *this)
@@ -184,6 +275,22 @@ func moveDownWhileSmall(this *KmerDb, offset int) {
 	}
 }
 
+func addToInt8( a *uint8, b uint8 ) {
+	if *a < max_counter {
+		//print("<", *a, " ", max_counter)
+		if (max_counter - *a) <= b {
+			//println("-")
+			*a = max_counter
+		} else {
+			//println("+")
+			*a += b
+		}
+	} else {
+		//println("=", *a, " ", max_counter)
+		*a = max_counter
+	}
+}
+
 //func mergeSortedSliceValues(this *KmerDb) int {
 //	var dstKmer  *KmerUnit
 //	var srcKmer  *KmerUnit
@@ -216,20 +323,4 @@ func moveDownWhileSmall(this *KmerDb, offset int) {
 //	addToInt8( &t, b )
 //	return t
 //}
-
-func addToInt8( a *uint8, b uint8 ) {
-	if *a < max_counter {
-		//print("<", *a, " ", max_counter)
-		if (max_counter - *a) <= b {
-			//println("-")
-			*a = max_counter
-		} else {
-			//println("+")
-			*a += b
-		}
-	} else {
-		//println("=", *a, " ", max_counter)
-		*a = max_counter
-	}
-}
 

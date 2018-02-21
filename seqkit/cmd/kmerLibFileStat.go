@@ -123,6 +123,29 @@ func (this *KmerReadStat) add(key1, key2 string, val Stat) {
 	this.Dict[key1][key2].Sum(val)
 }
 
+
+func (this *KmerReadStat) Merge(that *KmerReadStat) {
+	for _, key1 := range that.Key1 {
+		_,ok1 := this.Dict[key1]
+
+		if ! ok1 {
+			this.Dict[key1] = make(map[string]*Stat)
+			this.Key2[key1] = []string{}
+			this.Key1       = append(this.Key1, key1)
+		}
+
+		for _, key2 := range that.Key2[key1] {
+			_,ok2 := this.Dict[key1][key2]
+			if ! ok2 {
+				this.Dict[key1][key2] = NewStat()
+				this.Key2[key1]       = append(this.Key2[key1], key2)
+			}
+
+			this.Dict[key1][key2].Sum(*that.Dict[key1][key2])
+		}
+	}
+}
+
 func (this KmerReadStat) String() string {
 	var buffer StringBuffer
 	

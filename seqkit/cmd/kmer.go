@@ -31,11 +31,9 @@ import (
 )
 
 import (
-	"golang.org/x/text/message"
 	"github.com/shenwei356/go-logging"
 )
 
-var p = message.NewPrinter(message.MatchLanguage("en"))
 
 
 
@@ -111,7 +109,7 @@ var kmerCmd = &cobra.Command{
 		//})
 		
 
-		Info( "threads", config.Threads )
+		Info( "threads ", config.Threads )
 
 		//checkError(fmt.Errorf("done"))
 		
@@ -144,7 +142,7 @@ var kmerCmd = &cobra.Command{
 					holder.ParseFastQ(file, "FQ", &record.Seq.Seq)
 					//stats.AddSS(file, "FQ"       , parser.FastQ(&record.Seq.Seq))
 				} else {
-					Info("Parsing", string(record.Name))
+					Info("Parsing ", string(record.Name))
 					holder.ParseFastA(file, record.Name, &record.Seq.Seq)
 					//stats.AddSB(file, record.Name, parser.FastA(&record.Seq.Seq))
 				}

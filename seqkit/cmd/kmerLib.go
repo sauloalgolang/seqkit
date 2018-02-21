@@ -6,15 +6,6 @@ import (
 	"time"
 )
 
-const min_capacity = 1000000
-const max_counter  = uint8(254)
-//https://stackoverflow.com/questions/6878590/the-maximum-value-for-an-int-type-in-go
-const MaxUint      = ^uint64(0) 
-const MinUint      = 0
-const MaxInt       = int64(MaxUint >> 1)
-const MinInt       = -MaxInt - 1
-
-
 
 type KmerHolder struct {
 	KmerSize      int
@@ -80,76 +71,6 @@ func (this *KmerHolder) Print() {
 	this.Kmer.Print()
 }
 
-func (this *KmerHolder) Add(kmer uint64, count uint8) {
-	this.mux.Lock()
-	defer this.mux.Unlock()
-
-	this.KmerCount++
-	
-	if this.KmerCount % 1000000 == 0 {
-		tnow  := time.Now()
-		tdiff := tnow.Sub(this.LastPrint)
-		tinit := tnow.Sub(this.StartTIme)
-		
-		Infof( "%12d %v %v\n", this.KmerCount, tinit, tdiff )
-		
-		this.LastPrint      = time.Now()
-	}
-	
-	this.Sort()
-	this.Kmer.Add(kmer, count, this.LastNumKmers)
-	this.NumKmers = len(this.Kmer)
-}
-
-func (this *KmerHolder) Merge(that *KmerHolder) {
-	this.mux.Lock()
-	defer this.mux.Unlock()
-
-	this.Sort()
-	that.Sort()
-	that.Close()
-	
-	this.KmerCount += that.KmerCount
-	this.Kmer.Merge(&that.Kmer, this.LastNumKmers)
-	this.NumKmers = len(this.Kmer)
-}
-
-func (this *KmerHolder) ParseFastQ(key1 string, key2 string, seq *[]byte) {
-	// not necessary but why not?
-	this.wg.Add(1)
-	defer this.wg.Done()
-
-	this.mux.Lock()
-	defer this.mux.Unlock()
-
-	s := this.ParserG.fast(seq, FASTQ)
-	this.ReadStatsG.AddSS(key1, key2, *s)
-}
-
-func (this *KmerHolder) ParseFastA(key1 string, key2 []byte, seq *[]byte) {
-	this.wg.Add(1)
-
-	go func() {
-		defer this.wg.Done()
-
-		k := NewKmerHolder(this.KmerSize, this.MinLen, this.MaxLen, this.Profile)
-		//p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, this.Add)
-		p := NewKmerParser(this.KmerSize, this.MinLen, this.MaxLen, this.Profile, k.Add)
-		s := p.fast(seq, FASTA)
-
-		this.mux.Lock()
-		defer this.mux.Unlock()
-		this.Merge(k)
-		this.ReadStatsG.AddSB(key1, key2, *s)
-	}()
-}
-
-func (this *KmerHolder) Wait() {
-	Info("Waiting for conclusion")
-	this.wg.Wait()
-	Info("Finished reading")
-}
-
 func (this *KmerHolder) Close() {
 	this.SortAct()
 	//this.Kmer.Print()
@@ -160,7 +81,7 @@ func (this *KmerHolder) HasKmer(kmer uint64) bool {
 	return this.Kmer.HasKmer(kmer)
 }
 
-func (this *KmerHolder) GetInfo(kmer uint64) (int, KmerUnit, bool) {
+func (this *KmerHolder) GetInfo(kmer uint64) (int, *KmerUnit, bool) {
 	this.SortAct()
 	return this.Kmer.GetInfo(kmer)
 }
@@ -170,12 +91,12 @@ func (this *KmerHolder) GetIndex(kmer uint64) (int, bool) {
 	return this.Kmer.GetIndex(kmer)
 }
 
-func (this *KmerHolder) GetByKmer(kmer uint64) (KmerUnit, bool) {
+func (this *KmerHolder) GetByKmer(kmer uint64) (*KmerUnit, bool) {
 	this.SortAct()
 	return this.Kmer.GetByKmer(kmer)
 }
 
-func (this *KmerHolder) GetByIndex(i int) KmerUnit {
+func (this *KmerHolder) GetByIndex(i int) *KmerUnit {
 	this.SortAct()
 	return this.Kmer.GetByIndex(i)
 }
@@ -195,11 +116,91 @@ func (this *KmerHolder) PrintStats() {
 	this.ReadStatsG.Print()
 }
 
+func (this *KmerHolder) fast(key1 string, key2 string, seq *[]byte, fmt FORMAT) {
+	s := this.ParserG.fast(seq, fmt)
+	this.ReadStatsG.AddSS(key1, key2, *s)
+}
 
+func (this *KmerHolder) ParseFastQ(key1 string, key2 string, seq *[]byte) {
+	// not necessary but why not?
+	this.wg.Add(1)
+	defer this.wg.Done()
 
+	this.mux.Lock()
+	defer this.mux.Unlock()
 
+	this.fast(key1, key2, seq, FASTQ)
+}
 
+func (this *KmerHolder) ParseFastA(key1 string, key2 []byte, seq *[]byte) {
+	this.wg.Add(1)
 
+	go func() {
+		defer this.wg.Done()
+		Info("KmerHolder :: ParseFastA")
+
+		k := NewKmerHolder(this.KmerSize, this.MinLen, this.MaxLen, this.Profile)
+		k.fast(key1, string(key2), seq, FASTA)
+
+		this.mux.Lock()
+		defer this.mux.Unlock()
+		Info("KmerHolder :: ParseFastA :: merging")
+		Info("KmerHolder :: ParseFastA :: running GC")
+		//this.Merge(k)
+		k = nil
+		runtime.GC()
+		Info("KmerHolder :: ParseFastA :: running GC finished")
+	}()
+}
+
+func (this *KmerHolder) Wait() {
+	Info("Waiting for conclusion")
+	this.wg.Wait()
+	Info("Finished reading")
+}
+
+func (this *KmerHolder) Merge(that *KmerHolder) {
+	Info("KmerHolder :: Merging ", len(this.Kmer), len(that.Kmer))
+	
+	Info("KmerHolder :: Merging :: sorting")
+	this.SortAct()
+	that.SortAct()
+	that.Close()
+	
+	Info("KmerHolder :: Merging :: joining")
+	
+	this.Kmer.Merge(&that.Kmer, this.LastNumKmers)
+	
+	Info("KmerHolder :: Merging :: sorting again")
+	
+	this.SortAct()
+	
+	Info("KmerHolder :: Merging :: merging stats")
+	
+	this.KmerCount += that.KmerCount
+	this.ReadStatsG.Merge(that.ReadStatsG)
+	
+	Info("KmerHolder :: Merged")
+	Panic("merged")
+}
+
+func (this *KmerHolder) Add(kmer uint64, count uint8) {
+	this.KmerCount++
+	
+	if this.KmerCount % 1000000 == 0 {
+		tnow  := time.Now()
+		tdiff := tnow.Sub(this.LastPrint)
+		tinit := tnow.Sub(this.StartTIme)
+		
+		Infof( "%12d %v %v\n", this.KmerCount, tinit, tdiff )
+		
+		this.LastPrint      = time.Now()
+	}
+	
+	this.Sort()
+	this.Kmer.Add(kmer, count, this.LastNumKmers)
+	this.NumKmers = len(this.Kmer)
+}
 
 func (this *KmerHolder) Sort() {
 	if len(this.Kmer) == 0 {
@@ -207,7 +208,7 @@ func (this *KmerHolder) Sort() {
 		return
 	}
 	
-	if len(this.Kmer) < ( 9 * (cap(this.Kmer) / 10)) {
+	if !this.Kmer.Is90Percent() {
 		return
 	} else {
 		this.SortAct()
@@ -217,8 +218,8 @@ func (this *KmerHolder) Sort() {
 func (this *KmerHolder) SortAct() {
 	//https://stackoverflow.com/questions/28999735/what-is-the-shortest-way-to-simply-sort-an-array-of-structs-by-arbitrary-field
 	
-	if this.NumKmers == this.LastNumKmers {
-		//println("no growth")
+	if len(this.Kmer) == this.LastNumKmers {
+		Info("no growth ")
 		return
 	} else {
 		Infof("KmerDb    :: Sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer))
@@ -440,26 +441,16 @@ func (this *KmerHolder) SortAct() {
 	//	Debugf("sum differs")
 	//}
 	
-	if len(this.Kmer) >= ( 4 * (cap(this.Kmer) / 5)) {
-		newCap := (cap(this.Kmer) / 4 * 6)
-
+	if this.Kmer.Is80Percent() {
 		Infof("KmerDb    :: Sort :: Extend :: Before :: Len     %d", len(this.Kmer))
 		Infof("KmerDb    :: Sort :: Extend :: Before :: Cap     %d", cap(this.Kmer))
-		Infof("KmerDb    :: Sort :: Extend :: Before :: New Cap %d", newCap)
 		Infof("KmerDb    :: Sort :: Extend :: Before :: Address %p", this.Kmer)
 		
-		t := make(KmerDb, len(this.Kmer), newCap)
-		copy(t, this.Kmer)
-		this.Kmer = t
+		this.Kmer.Extend()
 		
 		Infof("KmerDb    :: Sort :: Extend :: After  :: Len     %d", len(this.Kmer))
 		Infof("KmerDb    :: Sort :: Extend :: After  :: Cap     %d", cap(this.Kmer))
-		Infof("KmerDb    :: Sort :: Extend :: After  :: New Cap %d", newCap)
 		Infof("KmerDb    :: Sort :: Extend :: After  :: Address %p", this.Kmer)
-		
-		Infof("KmerDb    :: Sort :: Extend :: Running GC")
-		runtime.GC()
-		Infof("KmerDb    :: Sort :: Extend :: GC Run")
 	}
 	
 	//this.Kmer.Print()

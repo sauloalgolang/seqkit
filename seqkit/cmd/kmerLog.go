@@ -40,15 +40,14 @@ type StringBuffer struct {
 	bytes.Buffer
 }
 
-func (b *StringBuffer) WriteStringf(fmt string, args ...interface{}) {
-	b.WriteString(Sprintf(fmt, args))
-}
-
-
 func IsLogLevelValid(lvl string) (r bool) {
 	lvli, _ := logging.LogLevel(lvl)
 	r = logging.GetLevel("seqkit") >= lvli
 	return
+}
+
+func (b *StringBuffer) WriteStringf(fmt string, args ...interface{}) {
+	b.WriteString(Sprintf(fmt, args...))
 }
 
 func PrintLevelf( lvln string, fmt string, args ...interface{} ) {
@@ -56,95 +55,118 @@ func PrintLevelf( lvln string, fmt string, args ...interface{} ) {
 	
 	switch; lvli {
 		case logging.INFO:
-			Info(fmt, args)
+			Infof(fmt, args...)
 		case logging.NOTICE:
-			Notice(fmt, args)
+			Noticef(fmt, args...)
 		case logging.WARNING:
-			Warning(fmt, args)
+			Warningf(fmt, args...)
 		case logging.ERROR:
-			Error(fmt, args)
+			Errorf(fmt, args...)
 		case logging.CRITICAL:
-			Critical(fmt, args)
+			Criticalf(fmt, args...)
 		case logging.DEBUG:
-			Debug(fmt, args)
+			Debugf(fmt, args...)
 		default:
-			Printf(fmt, args)
+			Printf(fmt, args...)
 	}
-
 }
 
+func PrintLevel( lvln string, msg ...interface{} ) {
+	lvli, _ := logging.LogLevel(lvln)
+	
+	switch; lvli {
+		case logging.INFO:
+			Info(msg...)
+		case logging.NOTICE:
+			Notice(msg...)
+		case logging.WARNING:
+			Warning(msg...)
+		case logging.ERROR:
+			Error(msg...)
+		case logging.CRITICAL:
+			Critical(msg...)
+		case logging.DEBUG:
+			Debug(msg...)
+		default:
+			Print(msg...)
+	}
+}
 
 
 func Infof(fmt string, args ...interface{}) {
-	log.Info(p.Sprintf(fmt, args))
+	log.Info(p.Sprintf(fmt, args...))
 }
 
 func Info(msg ...interface{}) {
-	log.Info(msg)
+	log.Info(p.Sprint(msg...))
 }
 
 
 
 func Noticef(fmt string, args ...interface{}) {
-	log.Notice(p.Sprintf(fmt, args))
+	log.Notice(p.Sprintf(fmt, args...))
 }
 
 func Notice(msg ...interface{}) {
-	log.Notice(msg)
+	log.Notice(p.Sprint(msg...))
 }
 
 
 
 func Warningf(fmt string, args ...interface{}) {
-	log.Warning(p.Sprintf(fmt, args))
+	log.Warning(p.Sprintf(fmt, args...))
 }
 
 func Warning(msg ...interface{}) {
-	log.Warning(msg)
+	log.Warning(p.Sprint(msg...))
 }
 
 
 
 func Errorf(fmt string, args ...interface{}) {
-	log.Error(p.Sprintf(fmt, args))
+	log.Error(p.Sprintf(fmt, args...))
 }
 
 func Error(msg ...interface{}) {
-	log.Error(msg)
+	log.Error(p.Sprint(msg...))
 }
 
 
 
 func Criticalf(fmt string, args ...interface{}) {
-	log.Critical(p.Sprintf(fmt, args))
+	log.Critical(p.Sprintf(fmt, args...))
 }
 
 func Critical(msg ...interface{}) {
-	log.Critical(msg)
+	log.Critical(p.Sprint(msg...))
 }
 
 
 
 func Debug(msg ...interface{}) {
-	log.Debug(msg)
+	log.Debug(p.Sprint(msg...))
 }
 
 
 
 func Panicf(fmt string, args ...interface{}) {
-	log.Panic(p.Sprintf(fmt, args))
+	log.Panic(p.Sprintf(fmt, args...))
 }
 
 func Panic(msg ...interface{}) {
-	log.Panic(msg)
+	log.Panic(p.Sprint(msg...))
 }
 
 
 
-func Sprintf(msg ...interface{}) string {
-	return p.Sprintf(msg)
+func Sprintf(fmt string, msg ...interface{}) string {
+	return p.Sprintf(fmt, msg...)
 }
 
 func Printf(fmt string, args ...interface{}) {
-	p.Printf(fmt, args)
+	p.Printf(fmt, args...)
+}
+
+func Print(msg ...interface{}) {
+	p.Print(msg...)
 }
