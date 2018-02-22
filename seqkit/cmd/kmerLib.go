@@ -222,13 +222,15 @@ func (this *KmerHolder) SortAct() {
 		Info("no growth ")
 		return
 	} else {
+		Info("")
+		Info("KmerDb    :: Sort")
 		Infof("KmerDb    :: Sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer))
 	}
 	
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Before :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
+	Debugf("KmerDb    :: Merge :: Merge & Sort :: Before :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
 	
 	lasti           := 0
-	//lenBufferBefore := len(this.Kmer)
+	lenBufferBefore := len(this.Kmer)
 	sumCountBefore  := 0
 
 	var dstKmer  *KmerUnit
@@ -290,9 +292,11 @@ func (this *KmerHolder) SortAct() {
 			}
 		}
 	} else {
-		//for i,_ := range this.Kmer { //sum buffer
-		//	sumCountBefore += int(this.Kmer[i].Count)
-		//}
+		if IsLogLevelValid("DEBUG") {
+			for i,_ := range this.Kmer { //sum buffer
+				sumCountBefore += int(this.Kmer[i].Count)
+			}
+		}
 
 		indexDst := 0
 		indexSrc := this.LastNumKmers
@@ -300,20 +304,20 @@ func (this *KmerHolder) SortAct() {
 		lenDst   := this.LastNumKmers
 		lenSrc   := len(this.Kmer)
 
-		//Debugf("KmerDb    :: Merge :: Merge & Sort :: Before")
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Before")
 		//this.Kmer.Print()
 
 		sortSliceOffset(&this.Kmer, lenDst)
 		
-		//Debugf("KmerDb    :: Merge :: Merge & Sort :: During")
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: During")
 		//this.Kmer.Print()
 		
 		for {
 			if indexSrc == lenSrc { // no more buffer. stop
-				//Debugf("KmerDb    :: Merge :: Merge & Sort :: indexSrc (%03d) == lenSrc (%03d). breaking", indexSrc, lenSrc )
+				Debugf("KmerDb    :: Merge :: Merge & Sort :: indexSrc (%03d) == lenSrc (%03d). breaking", indexSrc, lenSrc )
 				break
 			} else { // still has buffer
-				//Debugf("KmerDb    :: Merge :: Merge & Sort :: indexSrc (%03d) != lenSrc (%03d). merging", indexSrc, lenSrc )
+				Debugf("KmerDb    :: Merge :: Merge & Sort :: indexSrc (%03d) != lenSrc (%03d). merging", indexSrc, lenSrc )
 				
 				dstKmer  = &this.Kmer[indexDst]
 				srcKmer  = &this.Kmer[indexSrc]
@@ -340,11 +344,11 @@ func (this *KmerHolder) SortAct() {
 					}
 				}
 				
-				//Debugf("KmerDb    :: Merge :: Merge & Sort :: dstIndex % 3d srcIndex % 3d",  indexDst,  indexSrc)
-				//Debugf("KmerDb    :: Merge :: Merge & Sort :: dstKmerK %03d srcKmerK %03d", *dstKmerK, *srcKmerK)
+				Debugf("KmerDb    :: Merge :: Merge & Sort :: dstIndex % 3d srcIndex % 3d",  indexDst,  indexSrc)
+				Debugf("KmerDb    :: Merge :: Merge & Sort :: dstKmerK %03d srcKmerK %03d", *dstKmerK, *srcKmerK)
 
 				if *dstKmerK == *srcKmerK { //same kmer
-					//Debugf("KmerDb    :: Merge :: Merge & Sort :: Adding")
+					Debugf("KmerDb    :: Merge :: Merge & Sort :: Adding")
 
 					//sum
 					//*dstKmerC = sumInt8( *dstKmerC, *srcKmerC )
@@ -354,27 +358,28 @@ func (this *KmerHolder) SortAct() {
 					indexSrc++
 					
 				} else if *dstKmerK < *srcKmerK { //db < buffer
-					//Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order")
+					Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order")
 					
 					if indexDst >= lenDst {
-						//Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Swapping :: indexDst %03d LastNumKmers %03d", indexDst, this.LastNumKmers)
+						Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Swapping :: indexDst %03d LastNumKmers %03d", indexDst, this.LastNumKmers)
 						//this.Kmer.Print()
 
 						this.Kmer[indexDst], this.Kmer[indexSrc] = this.Kmer[indexSrc], this.Kmer[indexDst]
 						//*dstKmer, *srcKmer = *srcKmer, *dstKmer
 
-						//Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Move Down While Small :: indexSrc: %3d", indexSrc)
+						Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Move Down While Small :: indexSrc: %3d", indexSrc)
 						//this.Kmer.Print()
 						
+						//sortSliceOffset(&this.Kmer, indexSrc)
 						moveDownWhileSmall(&this.Kmer, indexSrc)
 						
-						//Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Move Down While Small :: indexSrc: %3d - Done", indexSrc)
+						Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Move Down While Small :: indexSrc: %3d - Done", indexSrc)
 						//this.Kmer.Print()
 						
 						lenDst = indexDst + 1
 						indexSrc++
 					} else {
-						//Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Next Dst")
+						Debugf("KmerDb    :: Merge :: Merge & Sort :: Out of order :: Next Dst")
 						
 						//this.Kmer.Print()
 							
@@ -382,27 +387,28 @@ func (this *KmerHolder) SortAct() {
 						indexDst++
 					}
 				} else if *dstKmerK > *srcKmerK { //db > buffer. worst case scnenario
-					//Debugf("KmerDb    :: Merge :: Merge & Sort :: Swapping")
+					Debugf("KmerDb    :: Merge :: Merge & Sort :: Swapping")
 
-					//this.Kmer.Print()
+					this.Kmer.Print()
 
 					//swapping values
 					this.Kmer[indexDst], this.Kmer[indexSrc] = this.Kmer[indexSrc], this.Kmer[indexDst]
 					//*dstKmer, *srcKmer = *srcKmer, *dstKmer
 					
-					//Debugf("KmerDb    :: Merge :: Merge & Sort :: Swapping :: Move Down While Small :: indexSrc: %3d", indexSrc)
-					//this.Kmer.Print()
+					Debugf("KmerDb    :: Merge :: Merge & Sort :: Swapping :: Move Down While Small :: indexSrc: %3d", indexSrc)
+					this.Kmer.Print()
 					
+					//sortSliceOffset(&this.Kmer, indexSrc)
 					moveDownWhileSmall(&this.Kmer, indexSrc)
 					
-					//Debugf("KmerDb    :: Merge :: Merge & Sort :: Swapping :: Move Down While Small :: indexSrc: %3d - Done", indexSrc)
-					//this.Kmer.Print()
+					Debugf("KmerDb    :: Merge :: Merge & Sort :: Swapping :: Move Down While Small :: indexSrc: %3d - Done", indexSrc)
+					this.Kmer.Print()
 				}
 			}
 		}
 
-		//Debugf("KmerDb    :: Merge :: Merge & Sort :: After :: indexDst: (%03d)", indexDst)
-		//this.Kmer.Print()
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: After :: indexDst: (%03d)", indexDst)
+		this.Kmer.Print()
 
 		if indexDst < lenDst {
 			lasti = lenDst - 1
@@ -412,29 +418,32 @@ func (this *KmerHolder) SortAct() {
 	}
 
 	if lasti != len(this.Kmer) - 1 {
-		//Debugf("KmerDb    :: Merge :: Merge & Sort :: Trimming :: last I %3d Len Buffer %3d", lasti, len(this.Kmer))
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Trimming :: last I %3d Len Buffer %3d", lasti, len(this.Kmer))
 		this.Kmer = this.Kmer[:lasti+1]
 	}
 	
-	//sumCountAfter := 0
-	//for i,_ := range this.Kmer {
-	//	sumCountAfter += int(this.Kmer[i].Count)
-	//}
+	if IsLogLevelValid("DEBUG") {
+		sumCountAfter := 0
+
+		for i,_ := range this.Kmer {
+			sumCountAfter += int(this.Kmer[i].Count)
+		}
 	
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Len Buffer Before %3d", lenBufferBefore   )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Last Buffer Len   %3d", this.LastNumKmers)
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Last I            %3d", lasti             )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Sum B             %3d", sumCountBefore    )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Sum A             %3d", sumCountAfter     )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Len               %3d", len(this.Kmer)  )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Cap               %3d", cap(this.Kmer)  )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Min K             %3d", minK              )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Max K             %3d", maxK              )
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: %p", this.Kmer)
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Len Buffer Before %3d", lenBufferBefore   )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Last Buffer Len   %3d", this.LastNumKmers)
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Last I            %3d", lasti             )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Sum B             %3d", sumCountBefore    )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Sum A             %3d", sumCountAfter     )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Len               %3d", len(this.Kmer)  )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Cap               %3d", cap(this.Kmer)  )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Min K             %3d", minK              )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Max K             %3d", maxK              )
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: %p", this.Kmer)
+	
+		Debugf("KmerDb    :: Merge :: Merge & Sort :: Final")
+		this.Kmer.Print()
+	}
 
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: Final")
-
-	//this.Kmer.Print()
 
 	//if sumCountBefore != sumCountAfter {
 	//	this.Kmer.Print()
@@ -453,7 +462,7 @@ func (this *KmerHolder) SortAct() {
 		Infof("KmerDb    :: Sort :: Extend :: After  :: Address %p", this.Kmer)
 	}
 	
-	//this.Kmer.Print()
+	this.Kmer.Print()
 
 	if len(this.Kmer) < this.LastNumKmers {
 		this.Kmer.Print()
@@ -464,8 +473,8 @@ func (this *KmerHolder) SortAct() {
 	this.LastNumKmers = len(this.Kmer)
 	Info("KmerDb    :: Sort :: Sorted")
 	Infof("KmerDb    :: Sort :: num kmers: %12d last kmer: %12d len kmer: %12d cap kmer: %12d", this.NumKmers, this.LastNumKmers, len(this.Kmer), cap(this.Kmer))
-	//Debugf("KmerDb    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
-	//this.Kmer.Print()
+	Debugf("KmerDb    :: Merge :: Merge & Sort :: After  :: %p Len %3d Cap %3d Prop %6.2f LastNumKmers %3d", this.Kmer, len(this.Kmer), cap(this.Kmer), float64(len(this.Kmer)) / float64(cap(this.Kmer)) * 100.0, this.LastNumKmers)
+	this.Kmer.Print()
 }
 
 

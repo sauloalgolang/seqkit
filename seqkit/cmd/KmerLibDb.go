@@ -67,14 +67,14 @@ func (this *KmerDb) GetByIndex(i int) *KmerUnit {
 }
 
 func (this *KmerDb) Merge(that *KmerDb, LastKmerLen int) {
-	Info("KmerDb :: Merging")
+	Debug("KmerDb :: Merging")
 	
 	if len(*this) == 0 {
-		Info("KmerDb :: Merging :: first - just copying ", len(*this), len(*that))
+		Debug("KmerDb :: Merging :: first - just copying ", len(*this), len(*that))
 		this.Replace(that)
-		Info("KmerDb :: Merging :: first - copied ", len(*this), len(*that))
+		Debug("KmerDb :: Merging :: first - copied ", len(*this), len(*that))
 	} else {
-		Info("KmerDb :: Merging :: joining ", len(*this), len(*that))
+		Debug("KmerDb :: Merging :: joining ", len(*this), len(*that))
 		var pos    int  = 0
 		var lkp    int  = 0
 		var index  int  = 0
@@ -93,9 +93,9 @@ func (this *KmerDb) Merge(that *KmerDb, LastKmerLen int) {
 				lkp = index + 1
 			}
 		}
-		Info("KmerDb :: Merging :: joined ", len(*this), len(*that))
+		Debug("KmerDb :: Merging :: joined ", len(*this), len(*that))
 	}
-	Info("KmerDb :: Merged")
+	Debug("KmerDb :: Merged")
 }
 
 func (this *KmerDb) Add(kmer uint64, count uint8, LastKmerLen int) {
@@ -105,7 +105,7 @@ func (this *KmerDb) Add(kmer uint64, count uint8, LastKmerLen int) {
 
 func (this *KmerDb) AddWithKnowledge(kmer uint64, count uint8, LastKmerLen int, lastKnownPlace int) (int, bool) {
 	if LastKmerLen == 0 {
-		print("N")
+		//print("N")
 		this.Append(kmer, count)
 		return 0, false
 	} else {
@@ -113,10 +113,10 @@ func (this *KmerDb) AddWithKnowledge(kmer uint64, count uint8, LastKmerLen int, 
 		index,found := t.GetIndex(kmer)
 
 		if found {
-			print("S")
+			//print("S")
 			addToInt8( &(*this)[lastKnownPlace+index].Count, count )
 		} else {
-			print("A")
+			//print("A")
 			this.Append(kmer, count)
 		}
 		
@@ -133,21 +133,27 @@ func (this *KmerDb) Append(kmer uint64, count uint8) {
 }
 
 func (this *KmerDb) Replace(that *KmerDb) {
-	Info("replacing")
+	Debug("replacing")
+	
 	t := make(KmerDb, len(*that), cap(*that)+max_capacity)
 	copy(t, *that)
 	(*this) = t
-	Info("replaced. running gc")
+	
+	Debug("replaced. running gc")
 	runtime.GC()
-	Info("replaced. running gc finished")
+	Debug("replaced. running gc finished")
 }
 
 func (this *KmerDb) Extend() {
-	Info("extending ", len(*this), cap(*this))
+	Debug("extending ", len(*this), cap(*this))
 	
 	newSize := len(*this)
 	newCap  := ((cap(*this) / 4) * 6) //50%
 
+	if newCap - cap(*this) < min_capacity {
+		newCap = cap(*this) + min_capacity		
+	}
+	
 	if newCap - cap(*this) > max_capacity {
 		newCap = cap(*this) + max_capacity
 	}
@@ -156,12 +162,12 @@ func (this *KmerDb) Extend() {
 	copy(t, *this)
 	(*this) = t
 
-	Info("extended  ", len(*this), cap(*this))
-	Info("extended. running  gc")
+	Debug("extended  ", len(*this), cap(*this))
+	Debug("extended. running  gc")
 
 	runtime.GC()
 
-	Info("extended. running  gc finished")
+	Debug("extended. running  gc finished")
 }
 
 func (this *KmerDb) Is80Percent() (iaf bool) {
@@ -248,6 +254,8 @@ func sortSliceOffset(this *KmerDb, offset int) {
 }
 
 func moveDownWhileSmall(this *KmerDb, offset int) {
+	Debug("moveDownWhileSmall ", offset)
+	
 	lt    := len(*this)
 	limit := lt-offset-1
 	start := 0
